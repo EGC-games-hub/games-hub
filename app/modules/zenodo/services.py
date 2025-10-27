@@ -25,7 +25,6 @@ class ZenodoService(BaseService):
         """
         FAKENODO_URL = os.getenv("FAKENODO_URL")
         if FAKENODO_URL:
-            # El fake ya incluirá la parte /api/deposit/depositions o no, según lo que montéis
             return FAKENODO_URL.rstrip("/")
 
         FLASK_ENV = os.getenv("FLASK_ENV", "development")
@@ -33,7 +32,6 @@ class ZenodoService(BaseService):
         if FLASK_ENV == "production":
             return os.getenv("ZENODO_API_URL", "https://zenodo.org/api/deposit/depositions")
         else:
-            # development o cualquier otro entorno
             return os.getenv("ZENODO_API_URL", "https://sandbox.zenodo.org/api/deposit/depositions")
 
 

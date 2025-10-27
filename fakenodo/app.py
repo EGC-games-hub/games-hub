@@ -1,11 +1,9 @@
-# fakenodo/app.py
 from flask import Flask, request, jsonify
 import uuid
 import copy
 
 app = Flask(__name__)
 
-# Base de datos simulada en memoria
 DATASETS = {}
 VERSIONS = {}
 
@@ -31,7 +29,6 @@ def edit_metadata(record_id):
         return jsonify({"error": "Deposition not found"}), 404
     data = request.get_json()
     DATASETS[record_id]["metadata"].update(data.get("metadata", {}))
-    # Editar metadatos NO genera DOI ni versión nueva
     return jsonify(DATASETS[record_id]), 200
 
 @app.route("/deposit/depositions/<record_id>/files", methods=["POST"])
@@ -46,7 +43,6 @@ def upload_file(record_id):
 def publish_deposition(record_id):
     if record_id not in DATASETS:
         return jsonify({"error": "Deposition not found"}), 404
-    # Generar nueva versión con DOI
     version_id = str(uuid.uuid4())
     new_doi = generate_doi()
     version_data = copy.deepcopy(DATASETS[record_id])
