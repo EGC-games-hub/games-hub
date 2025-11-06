@@ -46,8 +46,6 @@ services:
     networks:
       - uvlhub_network
 
-<<<<<<< HEAD
-=======
   selenium-hub:
     container_name: selenium_hub_container
     image: selenium/hub:latest
@@ -84,7 +82,6 @@ services:
     networks:
       - uvlhub_network
 
->>>>>>> upstream/main
 volumes:
   db_data:
 
