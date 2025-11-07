@@ -4,6 +4,7 @@ import os
 import shutil
 import tempfile
 import uuid
+import csv
 from datetime import datetime, timezone
 from zipfile import ZipFile
 
@@ -146,6 +147,66 @@ def upload():
         file.save(file_path)
     except Exception as e:
         return jsonify({"message": str(e)}), 500
+
+    # Validate CSV header matches the expected schema (same structure as topselling_steam_games.csv)
+    expected_header = [
+        "ID",
+        "Title",
+        "Description",
+        "Launch Date",
+        "Developer",
+        "Publisher",
+        "Price",
+        "Discount %",
+        "Original Price",
+        "Discounted Price",
+        "Recent Reviews",
+        "Recent Positive %",
+        "Recent Review Summary",
+        "Total Reviews",
+        "Total Positive %",
+        "Total Review Summary",
+        "Rating Value",
+        "Best Rating",
+        "Worst Rating",
+        "Tags",
+        "URL",
+    ]
+
+    try:
+        with open(file_path, newline='', encoding='utf-8') as csvfile:
+            reader = csv.reader(csvfile)
+            try:
+                header = next(reader)
+            except StopIteration:
+                # empty file
+                os.remove(file_path)
+                return jsonify({"message": "CSV is empty or invalid"}), 400
+
+        # normalize possible BOM on first header cell
+        if header and header[0].startswith('\ufeff'):
+            header[0] = header[0].lstrip('\ufeff')
+
+        if header != expected_header:
+            # delete invalid file
+            if os.path.exists(file_path):
+                os.remove(file_path)
+            return (
+                jsonify(
+                    {
+                        "message": "CSV header does not match the expected topselling_steam_games schema",
+                        "expected_header": expected_header,
+                        "received_header": header,
+                    }
+                ),
+                400,
+            )
+    except Exception as e:
+        # if any problem validating, remove file and return 400
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        logger.exception(f"Exception validating CSV header: {e}")
+        return jsonify({"message": "Error validating CSV file"}), 400
 
     return (
         jsonify(
