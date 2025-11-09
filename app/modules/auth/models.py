@@ -11,17 +11,20 @@ class User(db.Model, UserMixin):
 
     email = db.Column(db.String(256), unique=True, nullable=False)
     password = db.Column(db.String(256), nullable=False)
+    # Two-factor auth fields (TOTP)
+    totp_secret = db.Column(db.String(64), nullable=True)
+    two_factor_enabled = db.Column(db.Boolean, nullable=False, default=False)
     created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
 
     data_sets = db.relationship("DataSet", backref="user", lazy=True)
     profile = db.relationship("UserProfile", backref="user", uselist=False)
 
-    def __init__(self, **kwargs):
-        super(User, self).__init__(**kwargs)
+    def init(self, kwargs):
+        super(User, self).init(kwargs)
         if "password" in kwargs:
             self.set_password(kwargs["password"])
 
-    def __repr__(self):
+    def repr(self):
         return f"<User {self.email}>"
 
     def set_password(self, password):
@@ -34,3 +37,15 @@ class User(db.Model, UserMixin):
         from app.modules.auth.services import AuthenticationService
 
         return AuthenticationService().temp_folder_by_user(self)
+
+    def verify_totp(self, token: str) -> bool:
+        """Verify a TOTP token using the user's secret. Returns True if valid."""
+        if not self.totp_secret:
+            return False
+        try:
+            import pyotp
+
+            totp = pyotp.TOTP(self.totp_secret)
+            return totp.verify(token, valid_window=1)
+        except Exception:
+            return False
