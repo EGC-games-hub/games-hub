@@ -337,6 +337,30 @@
     
 </div>
 
+<!-- Recomendaciones de datasets similares -->
+<div class="card mt-4">
+    <div class="card-body">
+        <h4 class="mb-3">Recommendations of similar datasets</h4>
+        {% if recommended %}
+            <ul class="list-group list-group-flush">
+                {% for ds in recommended %}
+                    <li class="list-group-item">
+                        <a href="{{ url_for('dataset.subdomain_index', doi=ds.ds_meta_data.dataset_doi) }}">
+                            {{ ds.ds_meta_data.title }}
+                        </a>
+                        <br>
+                        <small class="text-muted">
+                            {{ ds.get_cleaned_publication_type() }} · {{ ds.get_files_count() }} files
+                        </small>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p class="text-muted">No related datasets found.</p>
+        {% endif %}
+    </div>
+</div>
+
 <!-- Modal-->
 <div class="modal fade" id="fileViewerModal" tabindex="-1" aria-labelledby="fileViewerModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg" style="height: 80vh; display: flex; align-items: center;">
