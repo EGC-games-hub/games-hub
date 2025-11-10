@@ -16,7 +16,8 @@ def test_client(test_client):
     for module testing (por example, new users)
     """
     with test_client.application.app_context():
-        user_test = User(email="user@example.com", password="test1234")
+        user_test = User(email="user@example.com")
+        user_test.set_password("test1234")
         db.session.add(user_test)
         db.session.commit()
 
@@ -77,7 +78,8 @@ def test_2fa_setup_flow(test_client):
 
 
 def test_2fa_login_flow(test_client, clean_database):
-    user = User(email="2fa_test@example.com", password="test1234")
+    user = User(email="2fa_test@example.com")
+    user.set_password("test1234")
     user.totp_secret = pyotp.random_base32()
     user.two_factor_enabled = True
     db.session.add(user)
@@ -106,7 +108,8 @@ def test_2fa_login_flow(test_client, clean_database):
 
 
 def test_2fa_verification_invalid_token(test_client, clean_database):
-    user = User(email="2fa_test@example.com", password="test1234")
+    user = User(email="2fa_test@example.com")
+    user.set_password("test1234")
     user.totp_secret = pyotp.random_base32()
     user.two_factor_enabled = True
     db.session.add(user)
