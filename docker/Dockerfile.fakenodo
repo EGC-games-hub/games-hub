@@ -13,4 +13,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY fakenodo/ /app/fakenodo/
 
 # Arrancar gunicorn enlazado al puerto dinámico de Render
-CMD ["sh", "-c", "gunicorn -w 2 -b 0.0.0.0:$PORT fakenodo.app:app"]
+# IMPORTANTE: dejamos 1 worker porque Fakenodo guarda el estado en memoria
+# y varios workers/procesos tendrían memoria separada, provocando 404 entre peticiones encadenadas.
+CMD ["sh", "-c", "gunicorn -w 1 -b 0.0.0.0:$PORT fakenodo.app:app"]
