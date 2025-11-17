@@ -21,18 +21,18 @@ class ZenodoService(BaseService):
 
     def get_zenodo_url(self):
         """
-        Returns the base URL for Zenodo or Fakenodo depending on environment variables.
+        Always returns the base URL for Fakenodo.
+
+        Priority:
+        1) FAKENODO_URL env var
+        2) Default local fakenodo instance (http://localhost:5001/deposit/depositions)
         """
-        FAKENODO_URL = os.getenv("FAKENODO_URL")
-        if FAKENODO_URL:
-            return FAKENODO_URL.rstrip("/")
+        fakenodo_url = os.getenv("FAKENODO_URL")
+        if fakenodo_url:
+            return fakenodo_url.rstrip("/")
 
-        FLASK_ENV = os.getenv("FLASK_ENV", "development")
-
-        if FLASK_ENV == "production":
-            return os.getenv("ZENODO_API_URL", "https://zenodo.org/api/deposit/depositions")
-        else:
-            return os.getenv("ZENODO_API_URL", "https://sandbox.zenodo.org/api/deposit/depositions")
+        # Default to local fakenodo if no env provided
+        return "http://localhost:5001/deposit/depositions"
 
 
     def get_zenodo_access_token(self):
@@ -43,7 +43,8 @@ class ZenodoService(BaseService):
         self.ZENODO_ACCESS_TOKEN = self.get_zenodo_access_token()
         self.ZENODO_API_URL = self.get_zenodo_url()
         self.headers = {"Content-Type": "application/json"}
-        self.params = {"access_token": self.ZENODO_ACCESS_TOKEN}
+        # Fakenodo does not require authentication params
+        self.params = {}
 
     def test_connection(self) -> bool:
         """
