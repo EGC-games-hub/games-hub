@@ -19,6 +19,7 @@ def set_service_driver(driver="firefox"):
 
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 >>>>>>> f286711 (fix: Arreglo para el flujo)
 def initialize_driver():
@@ -47,6 +48,12 @@ ddef initialize_driver():
     is_ci = os.environ.get("CI") == "true"
 
 >>>>>>> 4c99a6b (fix: Arreglar driver para que funcionen los test)
+=======
+ddef initialize_driver():
+    working_dir = os.environ.get("WORKING_DIR", "")
+    driver_name = get_service_driver()
+
+>>>>>>> 4c99a6b (fix: Arreglar driver para que funcionen los test)
     # Firefox Snap TMPDIR fix
     if driver_name == "firefox":
         snap_tmp = os.path.expanduser("~/snap/firefox/common/tmp")
@@ -57,6 +64,7 @@ ddef initialize_driver():
     if working_dir == "/app/":
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
         options = None
 =======
         selenium_hub_url = "http://selenium-hub:4444/wd/hub"
@@ -64,13 +72,19 @@ ddef initialize_driver():
 =======
         options = None
 >>>>>>> f286711 (fix: Arreglo para el flujo)
+=======
+        selenium_hub_url = "http://selenium-hub:4444/wd/hub"
+>>>>>>> 4c99a6b (fix: Arreglar driver para que funcionen los test)
         if driver_name == "chrome":
             options = webdriver.ChromeOptions()
         elif driver_name == "firefox":
             options = webdriver.FirefoxOptions()
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
+=======
+>>>>>>> 4c99a6b (fix: Arreglar driver para que funcionen los test)
             options.add_argument("--headless")  # <--- headless
             driver = webdriver.Remote(command_executor=selenium_hub_url, options=options)
 >>>>>>> 4c99a6b (fix: Arreglar driver para que funcionen los test)
@@ -80,6 +94,7 @@ ddef initialize_driver():
         else:
             raise Exception(f"Driver '{driver_name}' not supported.")
 
+<<<<<<< HEAD
         if is_ci:
             options.add_argument("--headless=new")
             options.add_argument("--no-sandbox")
@@ -119,6 +134,13 @@ ddef initialize_driver():
             options.add_argument("--no-sandbox")
             options.add_argument("--disable-dev-shm-usage")
 >>>>>>> f286711 (fix: Arreglo para el flujo)
+=======
+    # Local mode
+    if driver_name == "chrome":
+        options = webdriver.ChromeOptions()
+        if os.environ.get("CI"):
+            options.add_argument("--headless")  # headless en CI
+>>>>>>> 4c99a6b (fix: Arreglar driver para que funcionen los test)
         service = ChromeService(ChromeDriverManager().install())
         driver = webdriver.Chrome(service=service, options=options)
 
@@ -126,6 +148,7 @@ ddef initialize_driver():
         options = webdriver.FirefoxOptions()
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
         if is_ci:
             options.add_argument("--headless")
 =======
@@ -136,6 +159,10 @@ ddef initialize_driver():
         if is_ci:
             options.add_argument("--headless")
 >>>>>>> f286711 (fix: Arreglo para el flujo)
+=======
+        if os.environ.get("CI"):
+            options.add_argument("--headless")  # headless en CI
+>>>>>>> 4c99a6b (fix: Arreglar driver para que funcionen los test)
         service = FirefoxService(GeckoDriverManager().install())
         driver = webdriver.Firefox(service=service, options=options)
 
