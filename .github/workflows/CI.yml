@@ -1,5 +1,6 @@
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 >>>>>>> be10f1a (feat: Hcer que trabajen los workflows cada uno en sus ficheros)
 # ============================================================================
@@ -63,11 +64,14 @@ jobs:
         uses: actions/checkout@v5
 
 =======
+=======
+>>>>>>> 01f9e86 (feat: He cambiado los CI y CD para que esté todo centralizado en dos ficheros)
 # ----------------------------------------------------------------------------
 # Python Lint Workflow
 # This workflow runs linting and code style checks on every push and pull request.
 # It ensures the codebase follows Black formatting, and import ordering standards.
 # ----------------------------------------------------------------------------
+<<<<<<< HEAD
 =======
 >>>>>>> be10f1a (feat: Hcer que trabajen los workflows cada uno en sus ficheros)
 
@@ -126,6 +130,25 @@ jobs:
 >>>>>>> 01f9e86 (feat: He cambiado los CI y CD para que esté todo centralizado en dos ficheros)
 =======
 >>>>>>> be10f1a (feat: Hcer que trabajen los workflows cada uno en sus ficheros)
+=======
+
+nname: Python Format
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  format:
+    runs-on: ubuntu-24.04
+
+    steps:
+      # Checkout del repo
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      # Preparar Python
+>>>>>>> 01f9e86 (feat: He cambiado los CI y CD para que esté todo centralizado en dos ficheros)
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
@@ -133,16 +156,21 @@ jobs:
 
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
       # Instalar herramientas
 >>>>>>> 01f9e86 (feat: He cambiado los CI y CD para que esté todo centralizado en dos ficheros)
 =======
 >>>>>>> be10f1a (feat: Hcer que trabajen los workflows cada uno en sus ficheros)
+=======
+      # Instalar herramientas
+>>>>>>> 01f9e86 (feat: He cambiado los CI y CD para que esté todo centralizado en dos ficheros)
       - name: Install Black & isort
         run: |
           python -m pip install --upgrade pip
           pip install black isort
 
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
       - name: Run Black
@@ -184,6 +212,37 @@ jobs:
 =======
     needs: lint
 >>>>>>> 5b01fb8 (feat: Añadir workflow de commits de Jesús al archivo CI)
+=======
+      # Ejecutar Black
+      - name: Run Black
+        run: black . --line-length 120
+
+      # Ejecutar isort
+      - name: Run isort
+        run: isort .
+
+
+# ----------------------------------------------------------------------------
+# Run Tests Workflow
+# This workflow runs pytest on every push and pull request (targeting main).
+# It sets up a MariaDB service container and configures environment
+# variables for both the service and the test environment.
+# ----------------------------------------------------------------------------
+
+name: Pytest
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  pytest:
+    runs-on: ubuntu-24.04
+
+    # Global environment variables shared across services and steps
+>>>>>>> 01f9e86 (feat: He cambiado los CI y CD para que esté todo centralizado en dos ficheros)
     env:
       MARIADB_ROOT_PASSWORD: uvlhub_root_password
       MARIADB_DATABASE: uvlhubdb_test
@@ -193,6 +252,7 @@ jobs:
       MARIADB_HOSTNAME: 127.0.0.1
       MARIADB_PORT: 3306
       FLASK_ENV: testing
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
@@ -277,6 +337,11 @@ jobs:
 >>>>>>> 01f9e86 (feat: He cambiado los CI y CD para que esté todo centralizado en dos ficheros)
 =======
 >>>>>>> e483534 (fix: Arreglo en el flujo de CI)
+=======
+
+    services:
+      # MariaDB service container for integration tests
+>>>>>>> 01f9e86 (feat: He cambiado los CI y CD para que esté todo centralizado en dos ficheros)
       mariadb:
         image: mariadb:12.0.2
         env:
@@ -291,6 +356,7 @@ jobs:
           --health-interval=10s
           --health-timeout=5s
           --health-retries=3
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
     steps:
@@ -350,11 +416,22 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
+=======
+
+    steps:
+      
+      # Step 1: Checkout the repository code
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      # Step 2: Set up Python environment (version 3.12)
+>>>>>>> 01f9e86 (feat: He cambiado los CI y CD para que esté todo centralizado en dos ficheros)
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
           python-version: '3.12'
 
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
       - name: Install dependencies
@@ -367,11 +444,60 @@ jobs:
 >>>>>>> e483534 (fix: Arreglo en el flujo de CI)
       - name: Install dependencies and pytest-cov
 >>>>>>> 5b01fb8 (feat: Añadir workflow de commits de Jesús al archivo CI)
+=======
+      # Step 3: Remove local editable mode for rosemary dependency (not CI-friendly)
+      - name: Delete rosemary editable mode
+        run: sed -i '/rosemary @ file:\/\/\/app/d' requirements.txt
+
+      # Step 4: Install Python dependencies
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # Step 5: Run the pytest test suite (ignoring Selenium tests)
+      - name: Run Tests
+        run: pytest app/modules/ --ignore-glob='*selenium*'
+
+# ----------------------------------------------------------------------------
+# Test Coverage Workflow
+# This workflow runs pytest with coverage reporting on each push or pull request.
+# It installs dependencies, executes tests, and uploads the coverage report
+# as an artifact for later inspection.
+# ----------------------------------------------------------------------------
+
+name: Test Coverage
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  coverage:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Checkout repository code
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      # Step 2: Set up Python environment
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      # Step 3: Install dependencies and pytest-cov
+      - name: Install dependencies
+>>>>>>> 01f9e86 (feat: He cambiado los CI y CD para que esté todo centralizado en dos ficheros)
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install pytest-cov
 
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
@@ -423,6 +549,14 @@ jobs:
 >>>>>>> 01f9e86 (feat: He cambiado los CI y CD para que esté todo centralizado en dos ficheros)
 =======
 >>>>>>> be10f1a (feat: Hcer que trabajen los workflows cada uno en sus ficheros)
+=======
+      # Step 4: Run pytest with coverage enabled
+      - name: Run tests with coverage
+        run: |
+          pytest --cov=app --cov-report=term-missing --cov-report=xml
+
+      # Step 5: Upload the XML coverage report as an artifact
+>>>>>>> 01f9e86 (feat: He cambiado los CI y CD para que esté todo centralizado en dos ficheros)
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
         with:
@@ -430,7 +564,10 @@ jobs:
           path: coverage.xml
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
+=======
+>>>>>>> 01f9e86 (feat: He cambiado los CI y CD para que esté todo centralizado en dos ficheros)
 
 # ----------------------------------------------------------------------------
 # Commits Syntax Checker Workflow
@@ -457,6 +594,9 @@ jobs:
       - name: Validate commit messages
         uses: webiny/action-conventional-commits@v1.3.0
 
+<<<<<<< HEAD
 >>>>>>> 01f9e86 (feat: He cambiado los CI y CD para que esté todo centralizado en dos ficheros)
 =======
 >>>>>>> be10f1a (feat: Hcer que trabajen los workflows cada uno en sus ficheros)
+=======
+>>>>>>> 01f9e86 (feat: He cambiado los CI y CD para que esté todo centralizado en dos ficheros)
