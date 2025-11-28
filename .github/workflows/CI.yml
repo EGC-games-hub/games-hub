@@ -147,7 +147,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: '3.12'
+          python-version: "3.12"
 
       - name: Delete rosemary editable mode
         run: sed -i '/rosemary @ file:\/\/\/app/d' requirements.txt
