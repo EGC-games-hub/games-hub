@@ -17,9 +17,18 @@ def set_service_driver(driver="firefox"):
     os.environ["SERVICE_DRIVER"] = driver.lower()
 
 
-ddef initialize_driver():
+def initialize_driver():
+    """
+    Initialize the WebDriver depending on the environment.
+    - Local: uses webdriver-manager
+    - CI or Docker: headless mode (CI detection)
+    """
     working_dir = os.environ.get("WORKING_DIR", "")
-    driver_name = get_service_driver()
+    selenium_hub_url = "http://selenium-hub:4444/wd/hub"
+    driver_name = get_service_driver()  # tu función existente
+
+    # Detect CI environment
+    is_ci = os.environ.get("CI") == "true"
 
     # Firefox Snap TMPDIR fix
     if driver_name == "firefox":
@@ -29,30 +38,36 @@ ddef initialize_driver():
 
     # Remote mode (Selenium Grid)
     if working_dir == "/app/":
-        selenium_hub_url = "http://selenium-hub:4444/wd/hub"
+        options = None
         if driver_name == "chrome":
             options = webdriver.ChromeOptions()
-            driver = webdriver.Remote(command_executor=selenium_hub_url, options=options)
         elif driver_name == "firefox":
             options = webdriver.FirefoxOptions()
-            options.add_argument("--headless")  # <--- headless
-            driver = webdriver.Remote(command_executor=selenium_hub_url, options=options)
         else:
             raise Exception(f"Driver '{driver_name}' not supported.")
-        return driver
+
+        if is_ci:
+            options.add_argument("--headless=new")
+            options.add_argument("--no-sandbox")
+            options.add_argument("--disable-dev-shm-usage")
+
+        return webdriver.Remote(command_executor=selenium_hub_url, options=options)
+
 
     # Local mode
     if driver_name == "chrome":
         options = webdriver.ChromeOptions()
-        if os.environ.get("CI"):
-            options.add_argument("--headless")  # headless en CI
+        if is_ci:
+            options.add_argument("--headless=new")
+            options.add_argument("--no-sandbox")
+            options.add_argument("--disable-dev-shm-usage")
         service = ChromeService(ChromeDriverManager().install())
         driver = webdriver.Chrome(service=service, options=options)
 
     elif driver_name == "firefox":
         options = webdriver.FirefoxOptions()
-        if os.environ.get("CI"):
-            options.add_argument("--headless")  # headless en CI
+        if is_ci:
+            options.add_argument("--headless")
         service = FirefoxService(GeckoDriverManager().install())
         driver = webdriver.Firefox(service=service, options=options)
 
