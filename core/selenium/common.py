@@ -17,6 +17,7 @@ def set_service_driver(driver="firefox"):
     os.environ["SERVICE_DRIVER"] = driver.lower()
 
 
+<<<<<<< HEAD
 def initialize_driver():
     """
     Initialize the WebDriver depending on the environment.
@@ -30,6 +31,12 @@ def initialize_driver():
     # Detect CI environment
     is_ci = os.environ.get("CI") == "true"
 
+=======
+ddef initialize_driver():
+    working_dir = os.environ.get("WORKING_DIR", "")
+    driver_name = get_service_driver()
+
+>>>>>>> 4c99a6b (fix: Arreglar driver para que funcionen los test)
     # Firefox Snap TMPDIR fix
     if driver_name == "firefox":
         snap_tmp = os.path.expanduser("~/snap/firefox/common/tmp")
@@ -38,14 +45,24 @@ def initialize_driver():
 
     # Remote mode (Selenium Grid)
     if working_dir == "/app/":
+<<<<<<< HEAD
         options = None
+=======
+        selenium_hub_url = "http://selenium-hub:4444/wd/hub"
+>>>>>>> 4c99a6b (fix: Arreglar driver para que funcionen los test)
         if driver_name == "chrome":
             options = webdriver.ChromeOptions()
         elif driver_name == "firefox":
             options = webdriver.FirefoxOptions()
+<<<<<<< HEAD
+=======
+            options.add_argument("--headless")  # <--- headless
+            driver = webdriver.Remote(command_executor=selenium_hub_url, options=options)
+>>>>>>> 4c99a6b (fix: Arreglar driver para que funcionen los test)
         else:
             raise Exception(f"Driver '{driver_name}' not supported.")
 
+<<<<<<< HEAD
         if is_ci:
             options.add_argument("--headless=new")
             options.add_argument("--no-sandbox")
@@ -61,13 +78,25 @@ def initialize_driver():
             options.add_argument("--headless=new")
             options.add_argument("--no-sandbox")
             options.add_argument("--disable-dev-shm-usage")
+=======
+    # Local mode
+    if driver_name == "chrome":
+        options = webdriver.ChromeOptions()
+        if os.environ.get("CI"):
+            options.add_argument("--headless")  # headless en CI
+>>>>>>> 4c99a6b (fix: Arreglar driver para que funcionen los test)
         service = ChromeService(ChromeDriverManager().install())
         driver = webdriver.Chrome(service=service, options=options)
 
     elif driver_name == "firefox":
         options = webdriver.FirefoxOptions()
+<<<<<<< HEAD
         if is_ci:
             options.add_argument("--headless")
+=======
+        if os.environ.get("CI"):
+            options.add_argument("--headless")  # headless en CI
+>>>>>>> 4c99a6b (fix: Arreglar driver para que funcionen los test)
         service = FirefoxService(GeckoDriverManager().install())
         driver = webdriver.Firefox(service=service, options=options)
 
