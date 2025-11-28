@@ -195,9 +195,13 @@ jobs:
       FLASK_ENV: testing
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
       SELENIUM_HOST: http://127.0.0.1:5000   # <--- Para tus tests Selenium
 =======
 >>>>>>> 5b01fb8 (feat: Añadir workflow de commits de Jesús al archivo CI)
+=======
+      SELENIUM_HOST: http://127.0.0.1:5000   # <--- Para tus tests Selenium
+>>>>>>> e483534 (fix: Arreglo en el flujo de CI)
     services:
       mariadb:
         image: mariadb:12.0.2
@@ -231,6 +235,9 @@ jobs:
           pip install -r requirements.txt
 
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> e483534 (fix: Arreglo en el flujo de CI)
       - name: Start Flask in background and wait for readiness
         run: |
           export FLASK_APP=app
@@ -262,11 +269,14 @@ jobs:
       MARIADB_HOSTNAME: 127.0.0.1
       MARIADB_PORT: 3306
     services:
+<<<<<<< HEAD
 =======
 
     services:
       # MariaDB service container for integration tests
 >>>>>>> 01f9e86 (feat: He cambiado los CI y CD para que esté todo centralizado en dos ficheros)
+=======
+>>>>>>> e483534 (fix: Arreglo en el flujo de CI)
       mariadb:
         image: mariadb:12.0.2
         env:
@@ -281,6 +291,7 @@ jobs:
           --health-interval=10s
           --health-timeout=5s
           --health-retries=3
+<<<<<<< HEAD
 <<<<<<< HEAD
     steps:
       - name: Checkout
@@ -333,6 +344,8 @@ jobs:
     name: Test Coverage
     runs-on: ubuntu-latest
     needs: pytest
+=======
+>>>>>>> e483534 (fix: Arreglo en el flujo de CI)
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -343,9 +356,15 @@ jobs:
           python-version: '3.12'
 
 <<<<<<< HEAD
+<<<<<<< HEAD
       - name: Install dependencies
 >>>>>>> 01f9e86 (feat: He cambiado los CI y CD para que esté todo centralizado en dos ficheros)
 =======
+=======
+      - name: Delete rosemary editable mode
+        run: sed -i '/rosemary @ file:\/\/\/app/d' requirements.txt
+
+>>>>>>> e483534 (fix: Arreglo en el flujo de CI)
       - name: Install dependencies and pytest-cov
 >>>>>>> 5b01fb8 (feat: Añadir workflow de commits de Jesús al archivo CI)
         run: |
@@ -353,6 +372,7 @@ jobs:
           pip install -r requirements.txt
           pip install pytest-cov
 
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
       - name: Wait for MariaDB to be ready
@@ -378,8 +398,25 @@ jobs:
 =======
 >>>>>>> be10f1a (feat: Hcer que trabajen los workflows cada uno en sus ficheros)
       - name: Run tests with coverage
+=======
+      - name: Wait for MariaDB to be ready
+>>>>>>> e483534 (fix: Arreglo en el flujo de CI)
         run: |
-          pytest --cov=app --cov-report=term-missing --cov-report=xml
+          for i in {1..30}; do
+            if (echo > /dev/tcp/127.0.0.1/3306) >/dev/null 2>&1; then
+              echo "MariaDB is listening"
+              break
+            fi
+            echo "Waiting for MariaDB... ($i)"
+            sleep 1
+          done
+
+      - name: Run tests with coverage (exclude selenium)
+        run: |
+          # Exclude Selenium tests here: they are run in a separate job that
+          # starts the server and webdriver. This avoids trying to run
+          # browser tests when no server/driver is available.
+          pytest --ignore-glob='*selenium*' --cov=app --cov-report=term-missing --cov-report=xml
 
 <<<<<<< HEAD
       # Step 5: Upload the XML coverage report as an artifact
