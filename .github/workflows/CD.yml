@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # ============================================================================
 # Continuous Deployment Pipeline
 # 1. Espera a que Pytest (workflow separado) pase correctamente.
@@ -33,12 +34,38 @@ jobs:
       # -------------------------
       #   STEP 2: Log in Docker Hub
       # -------------------------
+=======
+# ----------------------------------------------------------------------------
+# Publish image in Docker Hub Workflow
+# This workflow builds and pushes a Docker image to Docker Hub whenever
+# a new release is published on GitHub.
+# ----------------------------------------------------------------------------
+
+name: Publish image in Docker Hub
+
+on:
+  release:
+    # Trigger only when a release is published
+    types: [published]
+
+jobs:
+  push_to_registry:
+    runs-on: ubuntu-24.04
+
+    steps:
+      
+      # Step 1: Check out the repository code
+      - uses: actions/checkout@v5
+
+      # Step 2: Log in to Docker Hub using secrets
+>>>>>>> 01f9e86 (feat: He cambiado los CI y CD para que esté todo centralizado en dos ficheros)
       - name: Log in to Docker Hub
         uses: docker/login-action@v3.6.0
         with:
           username: ${{ secrets.DOCKER_USER }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
+<<<<<<< HEAD
       # -------------------------
       #   STEP 3: Build & push image
       # -------------------------
@@ -60,5 +87,73 @@ jobs:
       #   STEP 4: Deploy to Render
       # -------------------------
       - name: Trigger Render Deploy Hook
+=======
+      # Step 3: Build and push the Docker image
+      - name: Build and push Docker image
+        run: |
+          TAG=${{ github.event.release.tag_name }}
+          IMAGE=${{ secrets.DOCKER_USER }}/uvlhub
+
+          docker build --build-arg VERSION_TAG=$TAG -t $IMAGE:$TAG -f docker/images/Dockerfile.prod .
+          docker push $IMAGE:$TAG
+
+          docker tag $IMAGE:$TAG $IMAGE:latest
+          docker push $IMAGE:latest
+
+# ----------------------------------------------------------------------------
+# Deploy on Webhook Workflow
+# This workflow triggers a deployment webhook only after the "Pytest" and "Publish image in Docker Hub"
+# workflow has successfully completed on the main branch.
+# ----------------------------------------------------------------------------
+
+name: Deploy on Webhook
+
+on:
+  workflow_run:
+    workflows:
+      - "Pytest"
+      - "Publish image in Docker Hub"
+    types:
+      - completed
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    if: >
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main'
+
+    steps:
+      - name: Wait for all required workflows
+        uses: actions/github-script@v7
+        id: checks
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const sha = context.payload.workflow_run.head_sha;
+
+            const checks = await github.rest.checks.listForRef({
+              owner,
+              repo,
+              ref: sha
+            });
+
+            const required = ["Pytest", "Publish image in Docker Hub"];
+            const passed = checks.data.check_runs.filter(
+              c => c.conclusion === "success"
+            ).map(c => c.name);
+
+            const missing = required.filter(r => !passed.includes(r));
+
+            if (missing.length > 0) {
+              core.setFailed(
+                `Missing required successful workflows: ${missing.join(", ")}`
+              );
+            }
+
+      - name: Trigger Render Deploy Hook
+        if: success()
+>>>>>>> 01f9e86 (feat: He cambiado los CI y CD para que esté todo centralizado en dos ficheros)
         run: |
           curl -X POST ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
