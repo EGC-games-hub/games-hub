@@ -43,6 +43,7 @@ def initialize_driver():
             options = webdriver.ChromeOptions()
         elif driver_name == "firefox":
             options = webdriver.FirefoxOptions()
+            driver = webdriver.Remote(command_executor=selenium_hub_url, options=options)
         else:
             raise Exception(f"Driver '{driver_name}' not supported.")
 
