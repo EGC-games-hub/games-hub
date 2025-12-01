@@ -8,6 +8,9 @@ from sqlalchemy import desc, func
 from app.modules.dataset.models import Author, DataSet, DOIMapping, DSDownloadRecord, DSMetaData, DSViewRecord
 from core.repositories.BaseRepository import BaseRepository
 
+from datetime import datetime, timedelta
+from sqlalchemy import func
+
 logger = logging.getLogger(__name__)
 
 
@@ -99,6 +102,28 @@ class DataSetRepository(BaseRepository):
             .all()
         )
 
+    def get_most_downloaded_last_month(self, limit=5):
+        
+        # Calculate date one month ago
+        one_month_ago = datetime.now() - timedelta(days=30)
+        
+        # Query to get datasets with most downloads in the last month
+        result = (
+            self.model.query
+            .join(DSMetaData)
+            .outerjoin(DSDownloadRecord, self.model.id == DSDownloadRecord.dataset_id)
+            .filter(DSMetaData.dataset_doi.isnot(None))
+            .filter(
+                (DSDownloadRecord.download_date >= one_month_ago) | 
+                (DSDownloadRecord.download_date.is_(None))
+            )
+            .group_by(self.model.id)
+            .order_by(desc(func.count(DSDownloadRecord.id)))
+            .limit(limit)
+            .all()
+        )
+        
+        return result
 
 class DOIMappingRepository(BaseRepository):
     def __init__(self):
