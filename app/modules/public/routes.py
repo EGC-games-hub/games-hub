@@ -27,9 +27,13 @@ def index():
     total_dataset_views = dataset_service.total_dataset_views()
     total_feature_model_views = feature_model_service.total_feature_model_views()
 
+    # Get trending datasets (most downloaded in the last month)
+    trending_datasets = dataset_service.get_most_downloaded_last_month(limit=5)
+
     return render_template(
         "public/index.html",
         datasets=dataset_service.latest_synchronized(),
+        trending_datasets=trending_datasets,
         datasets_counter=datasets_counter,
         feature_models_counter=feature_models_counter,
         total_dataset_downloads=total_dataset_downloads,
