@@ -1,4 +1,4 @@
-from flask import redirect, render_template, request, url_for
+from flask import abort, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
 from app import db
@@ -7,6 +7,7 @@ from app.modules.dataset.models import DataSet
 from app.modules.profile import profile_bp
 from app.modules.profile.forms import UserProfileForm
 from app.modules.profile.services import UserProfileService
+from app.modules.auth.models import User
 
 
 @profile_bp.route("/profile/edit", methods=["GET", "POST"])
@@ -49,6 +50,38 @@ def my_profile():
         "profile/summary.html",
         user_profile=current_user.profile,
         user=current_user,
+        datasets=user_datasets_pagination.items,
+        pagination=user_datasets_pagination,
+        total_datasets=total_datasets_count,
+    )
+
+
+@profile_bp.route("/profile/<int:user_id>", methods=["GET"])
+def public_profile(user_id: int):
+    """
+    Public profile view for any user by id (no login required).
+    Shows non-sensitive profile information and the user's datasets.
+    """
+    user = db.session.get(User, user_id)
+    if not user or not user.profile:
+        abort(404)
+
+    page = request.args.get("page", 1, type=int)
+    per_page = 5
+
+    user_datasets_pagination = (
+        db.session.query(DataSet)
+        .filter(DataSet.user_id == user.id)
+        .order_by(DataSet.created_at.desc())
+        .paginate(page=page, per_page=per_page, error_out=False)
+    )
+
+    total_datasets_count = db.session.query(DataSet).filter(DataSet.user_id == user.id).count()
+
+    return render_template(
+        "profile/public_summary.html",
+        user_profile=user.profile,
+        user=user,
         datasets=user_datasets_pagination.items,
         pagination=user_datasets_pagination,
         total_datasets=total_datasets_count,
