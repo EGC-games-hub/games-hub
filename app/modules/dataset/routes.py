@@ -22,6 +22,7 @@ from flask_login import current_user, login_required
 from app.modules.dataset import dataset_bp
 from app.modules.dataset.forms import DataSetForm
 from app.modules.dataset.models import DSDownloadRecord
+from app.modules.dataset.comment_service import CommentService, is_admin
 from app.modules.dataset.services import (
     AuthorService,
     DataSetService,
@@ -43,6 +44,7 @@ dsmetadata_service = DSMetaDataService()
 zenodo_service = ZenodoService()
 doi_mapping_service = DOIMappingService()
 ds_view_record_service = DSViewRecordService()
+comment_service = CommentService()
 
 
 @dataset_bp.route("/dataset/upload", methods=["GET", "POST"])
@@ -262,6 +264,63 @@ def subdomain_index(doi):
     resp.set_cookie("view_cookie", user_cookie)
 
     return resp
+
+
+
+@dataset_bp.route("/dataset/<int:dataset_id>/comments", methods=["POST"])
+@login_required
+def create_comment(dataset_id):
+    dataset = dataset_service.get_or_404(dataset_id)
+
+    content = request.form.get("content") or request.json and request.json.get("content")
+    if not content or not content.strip():
+        return jsonify({"message": "Empty comment"}), 400
+
+    # Create comment: visible immediately. No approval required.
+    comment = comment_service.create(dataset=dataset, user=current_user, content=content.strip())
+
+    # Redirect back to the dataset page (best-effort)
+    ref = request.referrer
+    if ref:
+        return redirect(ref)
+
+    # fallback: if dataset has DOI use subdomain_index, else unsynchronized view
+    if dataset.ds_meta_data and dataset.ds_meta_data.dataset_doi:
+        return redirect(url_for("dataset.subdomain_index", doi=dataset.ds_meta_data.dataset_doi))
+
+    return redirect(url_for("dataset.get_unsynchronized_dataset", dataset_id=dataset.id))
+
+
+@dataset_bp.route("/dataset/<int:dataset_id>/comments/<int:comment_id>/moderate", methods=["POST"])
+@login_required
+def moderate_comment(dataset_id, comment_id):
+    """Allow deletion of a comment by its author or by an admin.
+
+    The route name is kept as 'moderate' for compatibility but only 'delete' action is supported
+    according to the requested semantics.
+    """
+    dataset = dataset_service.get_or_404(dataset_id)
+
+    comment = comment_service.get(comment_id)
+    if not comment or comment.dataset_id != dataset.id:
+        abort(404)
+
+    # Only the comment author or admin can delete the comment
+    if not (current_user.id == comment.user_id or is_admin(current_user)):
+        abort(403)
+
+    action = request.form.get("action")
+    if action == "delete":
+        comment_service.delete(comment)
+    else:
+        return jsonify({"message": "unknown action"}), 400
+
+    ref = request.referrer
+    if ref:
+        return redirect(ref)
+    if dataset.ds_meta_data and dataset.ds_meta_data.dataset_doi:
+        return redirect(url_for("dataset.subdomain_index", doi=dataset.ds_meta_data.dataset_doi))
+    return redirect(url_for("dataset.get_unsynchronized_dataset", dataset_id=dataset.id))
 
 
 

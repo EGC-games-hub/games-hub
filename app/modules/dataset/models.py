@@ -130,6 +130,14 @@ class DataSet(db.Model):
     def __repr__(self):
         return f"DataSet<{self.id}>"
 
+    # Relationship to comments
+    comments = db.relationship(
+        "DatasetComment",
+        backref="data_set",
+        lazy=True,
+        cascade="all, delete-orphan",
+    )
+
 
 class DSDownloadRecord(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -162,3 +170,39 @@ class DOIMapping(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     dataset_doi_old = db.Column(db.String(120))
     dataset_doi_new = db.Column(db.String(120))
+
+
+class DatasetComment(db.Model):
+    """Simple comment model for datasets.
+
+    Fields:
+    - id: primary key
+    - dataset_id: FK to DataSet
+    - user_id: FK to user
+    - content: text of the comment
+    - created_at: timestamp
+    - is_visible: whether comment is visible to regular users (moderation)
+    """
+
+    __tablename__ = "dataset_comment"
+
+    id = db.Column(db.Integer, primary_key=True)
+    dataset_id = db.Column(db.Integer, db.ForeignKey("data_set.id"), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    # Visible indicates whether the comment is visible. Default True — comments are visible immediately.
+    is_visible = db.Column(db.Boolean, nullable=False, default=True)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "dataset_id": self.dataset_id,
+            "user_id": self.user_id,
+            "content": self.content,
+            "created_at": self.created_at,
+            "is_visible": self.is_visible,
+        }
+
+    # relationship to user (author)
+    user = db.relationship("User", backref=db.backref("dataset_comments", lazy=True))
