@@ -1,17 +1,31 @@
-from flask import redirect, render_template, request, url_for
-from flask_login import current_user, login_user, logout_user
-
-from app.modules.auth import auth_bp
-from app.modules.auth.forms import LoginForm, SignupForm
-from app.modules.auth.services import AuthenticationService
-from app.modules.profile.services import UserProfileService
-from flask import session, send_file, flash
+from flask import redirect, render_template, request, url_for, session, send_file, flash
+from flask_login import current_user, login_user, logout_user, login_required
+from functools import wraps
 from io import BytesIO
 
-from app.modules.auth.forms import TwoFactorForm
+from app.modules.auth import auth_bp
+from app.modules.auth.forms import LoginForm, SignupForm, TwoFactorForm
+from app.modules.auth.services import AuthenticationService
+from app.modules.profile.services import UserProfileService
+
+# Importamos User, ROLES y db para el panel de admin
+from app.modules.auth.models import User, ROLES
+from app import db
+
 
 authentication_service = AuthenticationService()
 user_profile_service = UserProfileService()
+
+
+def admin_required(f):
+    @wraps(f)
+    @login_required
+    def decorated_function(*args, **kwargs):
+        if not getattr(current_user, "is_admin", False):
+            flash("No tienes permisos para acceder a esta página.", "danger")
+            return redirect(url_for("public.index"))
+        return f(*args, **kwargs)
+    return decorated_function
 
 
 @auth_bp.route("/signup/", methods=["GET", "POST"])
@@ -30,11 +44,11 @@ def show_signup_form():
         except Exception as exc:
             return render_template("auth/signup_form.html", form=form, error=f"Error creating user: {exc}")
 
-        # Log user
         login_user(user, remember=True)
         return redirect(url_for("public.index"))
 
     return render_template("auth/signup_form.html", form=form)
+
 
 
 @auth_bp.route("/login", methods=["GET", "POST"])
@@ -45,11 +59,11 @@ def login():
     form = LoginForm()
     if request.method == "POST" and form.validate_on_submit():
         result = authentication_service.login(form.email.data, form.password.data, remember=form.remember_me.data)
+
         if result == True:
             return redirect(url_for("public.index"))
 
         if result == "otp_required":
-            # store the user id temporarily in session and redirect to verification
             user = authentication_service.repository.get_by_email(form.email.data)
             session["pre_2fa_user_id"] = user.id
             session["remember_me"] = form.remember_me.data
@@ -60,15 +74,16 @@ def login():
     return render_template("auth/login_form.html", form=form)
 
 
+
 @auth_bp.route("/logout")
 def logout():
     logout_user()
     return redirect(url_for("public.index"))
 
 
+
 @auth_bp.route("/2fa/verify", methods=["GET", "POST"])
 def two_factor_verify():
-    # Page where user submits the TOTP code after initial password check
     form = TwoFactorForm()
     user_id = session.get("pre_2fa_user_id")
     if not user_id:
@@ -78,7 +93,6 @@ def two_factor_verify():
     if request.method == "POST" and form.validate_on_submit():
         token = form.token.data.strip()
         if user and user.verify_totp(token):
-            # finalise login
             login_user(user, remember=session.get("remember_me", False))
             session.pop("pre_2fa_user_id", None)
             session.pop("remember_me", None)
@@ -87,47 +101,40 @@ def two_factor_verify():
 
     return render_template("auth/2fa_verify.html", form=form)
 
-
 @auth_bp.route("/2fa/setup", methods=["GET", "POST"])
 def two_factor_setup():
-    # Allow authenticated users to enable 2FA
     if not current_user.is_authenticated:
         return redirect(url_for("auth.login"))
 
-    # If user already has secret, show the provisioning QR and secret
     user = current_user
     form = TwoFactorForm()
 
     if not getattr(user, "totp_secret", None):
-        # generate secret and persist temporarily
         import pyotp
-
         secret = pyotp.random_base32()
-    user.totp_secret = secret
-    # do not enable until confirmed
+        user.totp_secret = secret
+
     user.two_factor_enabled = False
     authentication_service.repository.session.add(user)
     authentication_service.repository.session.commit()
 
-    # Build provisioning URI
     import pyotp
-
     uri = pyotp.totp.TOTP(user.totp_secret).provisioning_uri(name=user.email, issuer_name="Games Hub")
 
     return render_template("auth/2fa_setup.html", uri=uri, secret=user.totp_secret, form=form)
 
 
+
 @auth_bp.route("/2fa/qrcode")
 def two_factor_qrcode():
-    # Return a PNG QR code for the provisioning URI
     if not current_user.is_authenticated:
         return ("", 401)
+
     user = current_user
     if not getattr(user, "totp_secret", None):
         return ("No 2FA secret configured", 404)
 
     import qrcode
-
     import pyotp
 
     uri = pyotp.totp.TOTP(user.totp_secret).provisioning_uri(name=user.email, issuer_name="Games Hub")
@@ -138,9 +145,9 @@ def two_factor_qrcode():
     return send_file(buf, mimetype="image/png")
 
 
+
 @auth_bp.route("/2fa/confirm", methods=["POST"])
 def two_factor_confirm():
-    # Endpoint to confirm and enable 2FA after scanning
     if not current_user.is_authenticated:
         return ("", 401)
 
@@ -154,6 +161,32 @@ def two_factor_confirm():
             authentication_service.repository.session.commit()
             flash("Two-factor authentication enabled.", "success")
             return redirect(url_for("profile.edit_profile"))
+
         flash("Invalid authentication code.", "danger")
 
     return redirect(url_for("auth.two_factor_setup"))
+
+
+
+@auth_bp.route("/admin/users", methods=["GET"])
+@admin_required
+def admin_users():
+    users = User.query.all()
+    return render_template("auth/admin_users.html", users=users, roles=ROLES)
+
+
+@auth_bp.route("/admin/users/<int:user_id>/role", methods=["POST"])
+@admin_required
+def change_user_role(user_id):
+    new_role = request.form.get("role")
+
+    if new_role not in ROLES:
+        flash("Rol inválido", "danger")
+        return redirect(url_for("auth.admin_users"))
+
+    user = User.query.get_or_404(user_id)
+    user.role = new_role
+    db.session.commit()
+
+    flash(f"Rol de {user.email} actualizado a {new_role}", "success")
+    return redirect(url_for("auth.admin_users"))

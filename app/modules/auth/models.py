@@ -5,6 +5,10 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 from app import db
 
+ROLES = ["admin", "curator", "standard", "guest"]
+DEFAULT_ROLE = "standard"
+
+
 
 class User(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
@@ -15,6 +19,8 @@ class User(db.Model, UserMixin):
     totp_secret = db.Column(db.String(64), nullable=True)
     two_factor_enabled = db.Column(db.Boolean, nullable=False, default=False)
     created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+
+    role = db.Column(db.String(20), nullable=False, default=DEFAULT_ROLE)
 
     data_sets = db.relationship("DataSet", backref="user", lazy=True)
     profile = db.relationship("UserProfile", backref="user", uselist=False)
@@ -49,3 +55,7 @@ class User(db.Model, UserMixin):
             return totp.verify(token, valid_window=1)
         except Exception:
             return False
+        
+    @property
+    def is_admin(self) -> bool:
+        return self.role == "admin"
