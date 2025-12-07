@@ -52,15 +52,23 @@ def selenium(module, driver):
         def run_selenium_tests(module_name, env="local"):
             """Run Selenium tests in the specified environment."""
             test_paths = collect_test_paths(module_name)
-            base_cmd = "pytest" if env == "docker" else "python"
-            cmd = [base_cmd] + test_paths
+            # Use pytest in both environments to get proper per-test reporting
+            base_cmd = "pytest"
+            cmd = [base_cmd, "-v"] + test_paths
+
+            # Ensure Python can import the project's packages (e.g., 'core') when running locally
+            env_vars = os.environ.copy()
+            if env == "local":
+                project_root = working_dir or os.getcwd()
+                existing = env_vars.get("PYTHONPATH", "")
+                env_vars["PYTHONPATH"] = (project_root + (":" + existing if existing else ""))
 
             env_label = "Docker (Selenium Grid)" if env == "docker" else "local environment"
             click.echo(click.style(f"🚀 Running Selenium tests in {env_label}...", fg="cyan"))
             click.echo(f"→ Command: {' '.join(cmd)}")
 
             try:
-                subprocess.run(cmd, check=True)
+                subprocess.run(cmd, check=True, env=env_vars)
                 click.echo(click.style("✅ Selenium tests completed successfully.", fg="green"))
             except subprocess.CalledProcessError:
                 click.echo(click.style("❌ Selenium tests failed.", fg="red"))
