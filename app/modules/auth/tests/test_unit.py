@@ -4,6 +4,10 @@ from flask import url_for
 from app.modules.auth.repositories import UserRepository
 from app.modules.auth.services import AuthenticationService
 from app.modules.profile.repositories import UserProfileRepository
+from app.modules.auth.models import ROLES, DEFAULT_ROLE
+from app.modules.auth.repositories import UserRepository
+from flask_login import login_user
+from app.modules.auth.routes import change_user_role
 
 
 @pytest.fixture(scope="module")
@@ -102,3 +106,46 @@ def test_service_create_with_profile_fail_no_password(clean_database):
 
     assert UserRepository().count() == 0
     assert UserProfileRepository().count() == 0
+
+
+def test_roles_constants():
+    # Ensure the roles list contains the expected roles and default is correct
+    assert "admin" in ROLES
+    assert "curator" in ROLES
+    assert "standard" in ROLES
+    assert "guest" in ROLES
+    assert DEFAULT_ROLE == "standard"
+
+
+def test_admin_can_assign_role(test_client, clean_database):
+    repo = UserRepository()
+
+    admin = repo.create(email="admin@example.com", password="adminpass", role="admin")
+
+    user = repo.create(email="user@example.com", password="userpass")
+
+    with test_client.application.test_request_context(f"/admin/users/{user.id}/role", method="POST", data={"role": "curator"}):
+        login_user(admin)
+        resp = change_user_role(user.id)
+
+    repo.session.expire_all()
+    updated = repo.get_by_id(user.id)
+    assert updated.role == "curator"
+
+
+def test_invalid_role_is_rejected(test_client, clean_database):
+    repo = UserRepository()
+
+    admin = repo.create(email="admin2@example.com", password="adminpass", role="admin")
+
+    user = repo.create(email="user2@example.com", password="userpass")
+    
+    with test_client.application.test_request_context(f"/admin/users/{user.id}/role", method="POST", data={"role": "not-a-role"}):
+        login_user(admin)
+        resp = change_user_role(user.id)
+
+    
+    repo.session.expire_all()
+    updated = repo.get_by_id(user.id)
+    assert updated.role == "standard"
+
