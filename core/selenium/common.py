@@ -1,4 +1,5 @@
 import os
+import shutil
 
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service as ChromeService
@@ -61,14 +62,27 @@ def initialize_driver():
             options.add_argument("--headless=new")
             options.add_argument("--no-sandbox")
             options.add_argument("--disable-dev-shm-usage")
-        service = ChromeService(ChromeDriverManager().install())
+        # Prefer a system-installed chromedriver if available to avoid network
+        # downloads (and potential rate-limiting from remote APIs).
+        chromedriver_path = shutil.which("chromedriver")
+        if chromedriver_path:
+            service = ChromeService(chromedriver_path)
+        else:
+            service = ChromeService(ChromeDriverManager().install())
         driver = webdriver.Chrome(service=service, options=options)
 
     elif driver_name == "firefox":
         options = webdriver.FirefoxOptions()
         if is_ci:
             options.add_argument("--headless")
-        service = FirefoxService(GeckoDriverManager().install())
+        # Prefer a system-installed geckodriver if available to avoid contacting
+        # GitHub (which can be rate limited). If not available, fall back to
+        # webdriver-manager.
+        gecko_path = shutil.which("geckodriver")
+        if gecko_path:
+            service = FirefoxService(gecko_path)
+        else:
+            service = FirefoxService(GeckoDriverManager().install())
         driver = webdriver.Firefox(service=service, options=options)
 
     else:
