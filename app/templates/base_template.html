@@ -109,6 +109,18 @@ chico sundermann">
                                 class="align-middle">My datasets</span>
                         </a>
                     </li>
+                    {% if current_user.is_admin %}
+                    <li class="sidebar-header">
+                            Admin
+                            </li>
+
+        <li class="sidebar-item {{ 'active' if request.endpoint == 'auth.admin_users' else '' }}">
+                        <a class="sidebar-link" href="{{ url_for('auth.admin_users') }}">
+            <i class="align-middle" data-feather="shield"></i>
+            <span class="align-middle">Users & Roles</span>
+        </a>
+    </li>
+{% endif %}
 
                     <li class="sidebar-header">
                         Options
@@ -306,3 +318,4 @@ Romero-Organvidez, D., Galindo, J. A., Sundermann, C., Horcas, J.-M., & Benavide
 </body>
 
 </html>
+
