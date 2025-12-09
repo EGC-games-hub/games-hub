@@ -20,6 +20,12 @@ permissions:
   contents: write
   actions: write
 
+
+# Needed so CI can emit repository_dispatch to trigger CD
+permissions:
+  contents: write
+  actions: write
+
 jobs:
   # --------------------------------------------------------------------------
   # 1) Linting (Black & isort)
