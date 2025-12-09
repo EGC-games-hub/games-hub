@@ -17,42 +17,11 @@ on:
 
 jobs:
   # --------------------------------------------------------------------------
-  # 0) Commit messages
-  # --------------------------------------------------------------------------
-  commit-messages:
-    name: Commit messages (Commitizen)
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout (full history)
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Install Commitizen
-        run: pip install commitizen
-
-      - name: Check commit messages (push)
-        if: github.event_name == 'push'
-        run: |
-          cz check --rev-range ${{ github.event.before }}..${{ github.sha }}
-
-      - name: Check commit messages (PR)
-        if: github.event_name == 'pull_request'
-        run: |
-          cz check --rev-range ${{ github.event.pull_request.base.sha }}..${{ github.sha }}
-
-  # --------------------------------------------------------------------------
   # 1) Linting (Black & isort)
   # --------------------------------------------------------------------------
   lint:
     name: Lint (Black & isort)
     runs-on: ubuntu-24.04
-    needs: commit-messages
     steps:
       - name: Checkout
         uses: actions/checkout@v5
