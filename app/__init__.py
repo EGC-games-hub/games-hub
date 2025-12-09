@@ -65,7 +65,8 @@ def create_app(config_name="development"):
             "APP_VERSION": get_app_version(),
         }
 
+    # 👉 Registrar aquí el comando seed-users
+    from app.cli import seed_users
+    app.cli.add_command(seed_users)
+
     return app
-
-
-app = create_app()
