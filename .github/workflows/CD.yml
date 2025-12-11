@@ -16,12 +16,8 @@ on:
 jobs:
   publish_and_deploy:
     name: Publish Docker Image & Deploy (Main)
+    name: Publish Docker Image & Deploy (Main)
     runs-on: ubuntu-24.04
-
-    # Solo continuar si Pytest pasó y el commit pertenece a main
-    if: >
-      github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.head_branch == 'main'
 
     steps:
       - name: Checkout code
@@ -37,13 +33,13 @@ jobs:
         run: |
           IMAGE=${{ secrets.DOCKER_USER }}/uvlhub
           TAG=main-$(date +'%Y%m%d-%H%M%S')
+          TAG=main-$(date +'%Y%m%d-%H%M%S')
 
           echo "Building image with tag: $TAG"
 
           docker build -t $IMAGE:$TAG -f docker/images/Dockerfile.prod .
           docker push $IMAGE:$TAG
 
-          # También actualiza latest
           docker tag $IMAGE:$TAG $IMAGE:latest
           docker push $IMAGE:latest
 
