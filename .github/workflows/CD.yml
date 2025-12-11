@@ -9,7 +9,7 @@ name: CD Pipeline
 
 on:
   workflow_run:
-    workflows: ["Pytest"]   # Espera a que Pytest termine
+    workflows: ["CI Pipeline"]   # Espera a que CI Pipeline termine
     types: [completed]      # Solo ejecutar cuando finaliza
 
 jobs:
