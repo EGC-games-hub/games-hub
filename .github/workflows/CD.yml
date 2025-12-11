@@ -8,16 +8,15 @@
 name: CD Pipeline
 
 on:
-  push:
-    branches: [ "main"]
-  pull_request:
-    branches: [ "main"]
+  repository_dispatch:
+    types: [proddeploy]
 
 jobs:
   publish_and_deploy:
     name: Publish Docker Image & Deploy (Main)
-    name: Publish Docker Image & Deploy (Main)
     runs-on: ubuntu-24.04
+    # Only run when dispatch is for main
+    if: ${{ github.event.action == 'proddeploy' && github.event.client_payload.branch == 'main' }}
 
     steps:
       - name: Checkout code
@@ -32,7 +31,6 @@ jobs:
       - name: Build and push Docker image
         run: |
           IMAGE=${{ secrets.DOCKER_USER }}/uvlhub
-          TAG=main-$(date +'%Y%m%d-%H%M%S')
           TAG=main-$(date +'%Y%m%d-%H%M%S')
 
           echo "Building image with tag: $TAG"
