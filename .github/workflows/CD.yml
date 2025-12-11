@@ -8,7 +8,10 @@
 name: CD Pipeline
 
 on:
-  workflow_dispatch:
+  push:
+    branches: [ "trunk"]
+  pull_request:
+    branches: [ "trunk"]
 
 jobs:
   publish_and_deploy:
