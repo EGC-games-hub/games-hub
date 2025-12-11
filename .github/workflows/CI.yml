@@ -177,3 +177,21 @@ jobs:
         with:
           name: coverage-report
           path: coverage.xml
+
+      - name: Trigger CD PreDeploy (only on trunk)
+        if: github.ref == 'refs/heads/trunk'
+        run: |
+          curl -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${{ secrets.PERSONAL_ACCESS_TOKEN }}" \
+            https://api.github.com/repos/${{ github.repository }}/actions/workflows/cd-predeploy.yml/dispatches \
+            -d '{"ref":"trunk"}'
+
+      - name: Trigger CD Deploy (only on main)
+        if: github.ref == 'refs/heads/main'
+        run: |
+          curl -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${{ secrets.PERSONAL_ACCESS_TOKEN }}" \
+            https://api.github.com/repos/${{ github.repository }}/actions/workflows/cd.yml/dispatches \
+            -d '{"ref":"main"}'
