@@ -9,37 +9,85 @@ class AuthSeeder(BaseSeeder):
 
     def run(self):
 
-        # Seeding users
-        # Create User instances and ensure passwords are hashed via `set_password`
-        raw_users = [
-            ("user1@example.com", "1234"),
-            ("user2@example.com", "1234"),
+        # ---- 1) Definición de usuarios ----
+        seed_users = [
+            {
+                "email": "admin@example.com",
+                "password": "1234",
+                "role": "admin",
+                "name": "System",
+                "surname": "Administrator",
+                "affiliation": "Platform Admin",
+            },
+            {
+                "email": "curator@example.com",
+                "password": "1234",
+                "role": "curator",
+                "name": "Data",
+                "surname": "Curator",
+                "affiliation": "Research Group",
+            },
+            {
+                "email": "user1@example.com",
+                "password": "1234",
+                "role": "standard",
+                "name": "John",
+                "surname": "Doe",
+                "affiliation": "University",
+            },
+            {
+                "email": "user2@example.com",
+                "password": "1234",
+                "role": "standard",
+                "name": "Jane",
+                "surname": "Doe",
+                "affiliation": "University",
+            },
         ]
 
-        users = []
-        for email, plain_pw in raw_users:
-            u = User(email=email)
-            # Use model helper to set a proper hash instead of storing plaintext
-            u.set_password(plain_pw)
-            users.append(u)
+        created_users = []
 
-        # Inserted users with their assigned IDs are returned by `self.seed`.
-        seeded_users = self.seed(users)
+        # ---- 2) Crear / actualizar usuarios ----
+        for data in seed_users:
 
-        # Create profiles for each user inserted.
-        user_profiles = []
-        names = [("John", "Doe"), ("Jane", "Doe")]
+            user = User.query.filter_by(email=data["email"]).first()
 
-        for user, name in zip(seeded_users, names):
-            profile_data = {
-                "user_id": user.id,
-                "orcid": "",
-                "affiliation": "Some University",
-                "name": name[0],
-                "surname": name[1],
-            }
-            user_profile = UserProfile(**profile_data)
-            user_profiles.append(user_profile)
+            if user is None:
+                # Crear usuario nuevo
+                user = User(
+                    email=data["email"],
+                    role=data["role"],
+                )
+                user.set_password(data["password"])
+                self.db.session.add(user)
+            else:
+                # Actualizar usuario existente
+                user.role = data["role"]
+                user.set_password(data["password"])
 
-        # Seeding user profiles
-        self.seed(user_profiles)
+            created_users.append((user, data))
+
+        self.db.session.commit()
+
+        # ---- 3) Crear / actualizar perfiles ----
+        for user, data in created_users:
+
+            profile = UserProfile.query.filter_by(user_id=user.id).first()
+
+            if profile is None:
+                profile = UserProfile(
+                    user_id=user.id,
+                    name=data["name"],
+                    surname=data["surname"],
+                    affiliation=data["affiliation"],
+                    orcid="",
+                )
+                self.db.session.add(profile)
+            else:
+                profile.name = data["name"]
+                profile.surname = data["surname"]
+                profile.affiliation = data["affiliation"]
+
+        self.db.session.commit()
+
+        print("AuthSeeder → Usuarios y perfiles creados/actualizados correctamente.")
