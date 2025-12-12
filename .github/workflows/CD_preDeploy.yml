@@ -1,15 +1,16 @@
 name: CD Pipeline PreDeploy
 
 on:
-  push:
-    branches: [ "trunk"]
-  pull_request:
-    branches: [ "trunk"]
+  workflow_run:
+    workflows: ["CI"]           # Must match the `name:` in CI.yml (e.g., `name: CI`)
+    types: [completed]
+    branches: ["trunk"]         # Only react to CI runs on trunk
 
 jobs:
   publish_and_deploy:
     name: Publish Docker Image & Deploy (Trunk)
     runs-on: ubuntu-24.04
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}  # Gate on CI success
 
     steps:
       - name: Checkout code

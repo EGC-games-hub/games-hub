@@ -4,7 +4,6 @@
 #  - Python Format (Black + isort)
 #  - Pytest con MariaDB
 #  - Test Coverage
-#  - Commit Syntax Checker
 # ============================================================================
 
 name: CI Pipeline
