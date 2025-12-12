@@ -1,15 +1,15 @@
 name: CD Pipeline PreDeploy
 
 on:
-  push:
-    branches: [ "trunk"]
-  pull_request:
-    branches: [ "trunk"]
+  repository_dispatch:
+    types: [predeploy]
 
 jobs:
   publish_and_deploy:
     name: Publish Docker Image & Deploy (Trunk)
     runs-on: ubuntu-24.04
+    # Only run for trunk dispatches
+    if: ${{ github.event.action == 'predeploy' && github.event.client_payload.branch == 'trunk' }}
 
     steps:
       - name: Checkout code
