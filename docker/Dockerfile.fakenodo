@@ -1,0 +1,18 @@
+FROM python:3.12-slim
+
+ENV PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1
+
+WORKDIR /app
+
+# Instalar dependencias (usa el requirements.txt del repo)
+COPY requirements.txt /app/requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copiar solo fakenodo (opcional: puedes copiar todo el repo si lo prefieres)
+COPY fakenodo/ /app/fakenodo/
+
+# Arrancar gunicorn enlazado al puerto dinámico de Render
+# IMPORTANTE: dejamos 1 worker porque Fakenodo guarda el estado en memoria
+# y varios workers/procesos tendrían memoria separada, provocando 404 entre peticiones encadenadas.
+CMD ["sh", "-c", "gunicorn -w 1 -b 0.0.0.0:$PORT fakenodo.app:app"]

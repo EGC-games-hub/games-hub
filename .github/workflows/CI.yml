@@ -14,6 +14,7 @@ on:
   pull_request:
     branches: [ "trunk", "main" ]
 
+
 # Needed so CI can emit repository_dispatch to trigger CD
 permissions:
   contents: write
@@ -205,6 +206,35 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               event_type: 'predeploy',
+              client_payload: {
+                branch: context.ref.replace('refs/heads/', ''),
+                sha: context.sha
+              }
+            });
+
+  # --------------------------------------------------------------------------
+  # 5) Dispatch CD for main (production) after CI success
+  # --------------------------------------------------------------------------
+  dispatch_deploy_main:
+    name: Dispatch CD Deploy (main)
+    runs-on: ubuntu-24.04
+    needs: coverage
+    if: ${{ github.ref == 'refs/heads/main' }}
+    steps:
+      - name: Debug context
+        uses: actions/github-script@v7
+        with:
+          script: |
+            core.info(`Ref: ${context.ref}`)
+            core.info(`SHA: ${context.sha}`)
+      - name: Create repository_dispatch event (proddeploy)
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.request('POST /repos/{owner}/{repo}/dispatches', {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              event_type: 'proddeploy',
               client_payload: {
                 branch: context.ref.replace('refs/heads/', ''),
                 sha: context.sha
