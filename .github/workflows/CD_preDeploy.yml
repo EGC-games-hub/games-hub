@@ -1,16 +1,15 @@
 name: CD Pipeline PreDeploy
 
 on:
-  workflow_run:
-    workflows: ["CI Pipeline"]
-    types: [completed]
+  repository_dispatch:
+    types: [predeploy]
 
 jobs:
   publish_and_deploy:
     name: Publish Docker Image & Deploy (Trunk)
     runs-on: ubuntu-24.04
-    # Gate on CI success and ensure the CI run head_branch is trunk
-    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'trunk' }}
+    # Only run for trunk dispatches
+    if: ${{ github.event.action == 'predeploy' && github.event.client_payload.branch == 'trunk' }}
 
     steps:
       - name: Checkout code
