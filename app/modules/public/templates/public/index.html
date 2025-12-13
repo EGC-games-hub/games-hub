@@ -4,6 +4,54 @@
 
 {% block content %}
 
+    <!-- Trending Datasets Section -->
+    {% if trending_datasets and trending_datasets|length > 0 %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <h2 class="mb-3"><b>Datasets más populares</b></h2>
+                    <p class="text-muted">Los 5 datasets más descargados en el último mes</p>
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Título</th>
+                                    <th>Autor principal</th>
+                                    <th>Descargas (último mes)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in trending_datasets %}
+                                <tr style="cursor: pointer;" onclick="window.location.href='{{ item.dataset.get_uvlhub_doi() }}'">
+                                    <td>
+                                        <a href="{{ item.dataset.get_uvlhub_doi() }}">
+                                            {{ item.dataset.ds_meta_data.title }}
+                                        </a>
+                                    </td>
+                                    <td>
+                                        {% if item.dataset.ds_meta_data.authors %}
+                                            {{ item.dataset.ds_meta_data.authors[0].name }}
+                                            {% if item.dataset.ds_meta_data.authors[0].affiliation %}
+                                                <small class="text-muted">({{ item.dataset.ds_meta_data.authors[0].affiliation }})</small>
+                                            {% endif %}
+                                        {% else %}
+                                            <span class="text-muted">Sin autor</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-primary">{{ item.download_count }} descargas</span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
     <h1 class="h2 mb-3">
 
         <b>Latest</b> datasets
