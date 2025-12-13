@@ -24,6 +24,9 @@ from app.modules.hubfile.repositories import (
     HubfileViewRecordRepository,
 )
 from core.services.BaseService import BaseService
+from datetime import datetime, timedelta
+from sqlalchemy import func
+from app.modules.dataset.models import DSDownloadRecord
 
 logger = logging.getLogger(__name__)
 
@@ -76,6 +79,30 @@ class DataSetService(BaseService):
 
     def count_synchronized_datasets(self):
         return self.repository.count_synchronized_datasets()
+
+    def get_most_downloaded_last_month(self, limit=5):
+        """Get the most downloaded datasets in the last month with download counts"""
+        
+        one_month_ago = datetime.now() - timedelta(days=30)
+        datasets = self.repository.get_most_downloaded_last_month(limit)
+        
+        # Get download counts for each dataset
+        result = []
+        for dataset in datasets:
+            download_count = (
+                self.dsdownloadrecord_repository.model.query
+                .filter(
+                    DSDownloadRecord.dataset_id == dataset.id,
+                    DSDownloadRecord.download_date >= one_month_ago
+                )
+                .count()
+            )
+            result.append({
+                'dataset': dataset,
+                'download_count': download_count
+            })
+        
+        return result
 
     def count_feature_models(self):
         return self.feature_model_service.count_feature_models()
