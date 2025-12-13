@@ -69,7 +69,7 @@ class DataSetSeeder(BaseSeeder):
         # Assume there are 12 UVL files, create corresponding FMMetaData and FeatureModel
         fm_meta_data_list = [
             FMMetaData(
-                uvl_filename=f"file{i+1}.uvl",
+                uvl_filename=f"file{i+1}.csv",
                 title=f"Feature Model {i+1}",
                 description=f"Description for feature model {i+1}",
                 publication_type=PublicationType.SOFTWARE_DOCUMENTATION,
@@ -99,13 +99,32 @@ class DataSetSeeder(BaseSeeder):
         ]
         seeded_feature_models = self.seed(feature_models)
 
-        # Create files, associate them with FeatureModels and copy files
+        # Create files, associate them with FeatureModels and copy CSV example files
+        # Now we use the CSV examples located in app/modules/dataset_csv/csv_example
         load_dotenv()
         working_dir = os.getenv("WORKING_DIR", "")
-        src_folder = os.path.join(working_dir, "app", "modules", "dataset", "uvl_examples")
-        for i in range(12):
-            file_name = f"file{i+1}.uvl"
-            feature_model = seeded_feature_models[i]
+        src_folder = os.path.join(working_dir, "app", "modules", "dataset_csv", "csv_example")
+
+        # If the above path doesn't exist (WORKING_DIR not set or different),
+        # try to resolve the path relative to this file (repo layout fallback).
+        if not os.path.isdir(src_folder):
+            repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+            src_folder_alt = os.path.join(repo_root, "app", "modules", "dataset_csv", "csv_example")
+            if os.path.isdir(src_folder_alt):
+                src_folder = src_folder_alt
+
+        # Gather CSV files from the source folder
+        try:
+            csv_files = [f for f in os.listdir(src_folder) if f.lower().endswith(".csv")]
+        except FileNotFoundError:
+            raise Exception(f"CSV source folder not found: {src_folder}")
+
+        if not csv_files:
+            raise Exception(f"No CSV files found in {src_folder}")
+
+        # Iterate over feature models and attach a CSV file to each one (round-robin if fewer files)
+        for i, feature_model in enumerate(seeded_feature_models):
+            file_name = csv_files[i % len(csv_files)]
             dataset = next(ds for ds in seeded_datasets if ds.id == feature_model.data_set_id)
             user_id = dataset.user_id
 
@@ -115,10 +134,10 @@ class DataSetSeeder(BaseSeeder):
 
             file_path = os.path.join(dest_folder, file_name)
 
-            uvl_file = Hubfile(
+            csv_file = Hubfile(
                 name=file_name,
                 checksum=f"checksum{i+1}",
                 size=os.path.getsize(file_path),
                 feature_model_id=feature_model.id,
             )
-            self.seed([uvl_file])
+            self.seed([csv_file])
