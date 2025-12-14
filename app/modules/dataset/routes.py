@@ -67,9 +67,9 @@ def create_dataset():
             logger.exception(f"Exception while create dataset data in local {exc}")
             return jsonify({"Exception while create dataset data in local: ": str(exc)}), 400
 
-        # send dataset as deposition to fakenodo (Zenodo disabled)
-        # The application must not call the real Zenodo API per configuration.
-        use_zenodo = False
+        # send dataset as deposition to fakenodo (Zenodo enabled)
+        # The application must not call the real Zenodo API; ZenodoService is configured to use fakenodo.
+        use_zenodo = True
         data = {}
         if use_zenodo:
             try:
