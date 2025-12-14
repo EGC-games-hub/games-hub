@@ -101,8 +101,57 @@ class DatasetCommentsBehavior(TaskSet):
             pass
 
 
+class DatasetBehavior(TaskSet):
+    on_start = None
+
+    def on_start(self):
+        # warm-up: visit upload page to obtain CSRF if needed
+        try:
+            self.dataset_upload()
+        except Exception:
+            # keep running even if upload page is not available in this environment
+            pass
+
+    @task(3)
+    def dataset_upload(self):
+        """Visit dataset upload page and extract CSRF token (if present)."""
+        response = self.client.get("/dataset/upload")
+        # utility will raise if token not found; swallow to avoid failing the locust run
+        try:
+            get_csrf_token(response)
+        except Exception:
+            pass
+
+    @task(5)
+    def homepage_trending_check(self):
+        """Hit homepage and assert trending section exists and contains expected structure.
+
+        Locust tasks should be resilient: don't raise on minor mismatches, but log them.
+        """
+        resp = self.client.get("/")
+        # Basic health check
+        if resp.status_code != 200:
+            print(f"Homepage returned status {resp.status_code}")
+            return
+
+        body = resp.text or ""
+
+        # Check for Spanish heading or fallback English
+        if not ("Datasets más populares" in body or "Datasets mas populares" in body or "Most popular datasets" in body):
+            # also try to find the table structure used by the template
+            if not re.search(r"<table[\s\S]*class=\"table table-hover\"", body):
+                print("Trending section not found on homepage (no heading or expected table).")
+                return
+
+        # Quick heuristic: count badges that indicate download counts
+        badges = re.findall(r"<span class=\"badge bg-primary\">", body)
+        if len(badges) == 0:
+            # not fatal, but note it
+            print("No primary download badges found in homepage trending section.")
+
+
 class DatasetUser(HttpUser):
-    tasks = [DatasetCommentsBehavior]
+    tasks = [DatasetCommentsBehavior, DatasetBehavior]
     min_wait = 5000
     max_wait = 9000
     host = get_host_for_locust_testing()
