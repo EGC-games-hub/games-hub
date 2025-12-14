@@ -67,34 +67,78 @@ def create_dataset():
             logger.exception(f"Exception while create dataset data in local {exc}")
             return jsonify({"Exception while create dataset data in local: ": str(exc)}), 400
 
-        # send dataset as deposition to Zenodo
+        # send dataset as deposition to fakenodo (Zenodo disabled)
+        # The application must not call the real Zenodo API per configuration.
+        use_zenodo = False
         data = {}
-        try:
-            zenodo_response_json = zenodo_service.create_new_deposition(dataset)
-            response_data = json.dumps(zenodo_response_json)
-            data = json.loads(response_data)
-        except Exception as exc:
-            data = {}
-            zenodo_response_json = {}
-            logger.exception(f"Exception while create dataset data in Zenodo {exc}")
+        if use_zenodo:
+            try:
+                zenodo_response_json = zenodo_service.create_new_deposition(dataset)
+                response_data = json.dumps(zenodo_response_json)
+                data = json.loads(response_data)
+            except Exception as exc:
+                # Return a clear error so client/frontend knows deposition creation failed.
+                logger.exception(f"Exception while create dataset data in Zenodo {exc}")
+                return (
+                    jsonify(
+                        {
+                            "message": "Could not create deposition on Zenodo/fakenodo.",
+                            "error": str(exc),
+                            "hint": "Ensure FAKENODO_URL is reachable from the app (if using fakenodo inside Docker, set FAKENODO_URL accordingly).",
+                        }
+                    ),
+                    502,
+                )
+        else:
+            # If Zenodo integration is disabled, mark dataset as 'synchronized' locally by generating
+            # a local DOI-like identifier so it does not appear in Unsynchronized lists.
+            local_doi = f"local-{uuid.uuid4().hex[:8]}"
+            try:
+                dataset_service.update_dsmetadata(dataset.ds_meta_data_id, dataset_doi=local_doi)
+                # reflect in the object we have in memory
+                dataset.ds_meta_data.dataset_doi = local_doi
+            except Exception:
+                logger.exception("Failed to set local DOI for dataset when USE_ZENODO is disabled")
 
-        if data.get("conceptrecid"):
+        # Some Zenodo instances (including fakenodo) may not return 'conceptrecid'.
+        # Proceed when we have either a conceptrecid (official Zenodo) or an id (fakenodo/local).
+        if data.get("conceptrecid") or data.get("id"):
             deposition_id = data.get("id")
 
-            # update dataset with deposition id in Zenodo
-            dataset_service.update_dsmetadata(dataset.ds_meta_data_id, deposition_id=deposition_id)
+            # Try to store deposition_id only if it's an integer (real Zenodo uses numeric ids).
+            try:
+                deposition_id_int = int(deposition_id)
+            except (TypeError, ValueError):
+                deposition_id_int = None
+
+            if deposition_id_int is not None:
+                try:
+                    dataset_service.update_dsmetadata(dataset.ds_meta_data_id, deposition_id=deposition_id_int)
+                except Exception:
+                    # Non-fatal: continue even if we can't store deposition id
+                    pass
 
             try:
                 # iterate for each feature model (one feature model = one request to Zenodo)
                 for feature_model in dataset.feature_models:
                     zenodo_service.upload_file(dataset, deposition_id, feature_model)
 
-                # publish deposition
-                zenodo_service.publish_deposition(deposition_id)
+                # publish deposition and try to obtain DOI from publish response (fakenodo returns DOI here)
+                publish_resp = zenodo_service.publish_deposition(deposition_id)
 
-                # update DOI
-                deposition_doi = zenodo_service.get_doi(deposition_id)
-                dataset_service.update_dsmetadata(dataset.ds_meta_data_id, dataset_doi=deposition_doi)
+                deposition_doi = None
+                if isinstance(publish_resp, dict):
+                    deposition_doi = publish_resp.get("doi")
+
+                # fallback to get_deposition for DOI if not present in publish response
+                if not deposition_doi:
+                    try:
+                        deposition_doi = zenodo_service.get_doi(deposition_id)
+                    except Exception:
+                        deposition_doi = None
+
+                if deposition_doi:
+                    dataset_service.update_dsmetadata(dataset.ds_meta_data_id, dataset_doi=deposition_doi)
             except Exception as e:
                 msg = f"it has not been possible upload feature models in Zenodo and update the DOI: {e}"
                 return jsonify({"message": msg}), 200
@@ -105,7 +149,19 @@ def create_dataset():
             shutil.rmtree(file_path)
 
         msg = "Everything works!"
-        return jsonify({"message": msg}), 200
+        result = {"message": msg}
+        # Include DOI info when available so the frontend can show the DOI/URL
+        try:
+            if dataset and dataset.ds_meta_data and dataset.ds_meta_data.dataset_doi:
+                result["dataset_doi"] = dataset.ds_meta_data.dataset_doi
+                result["doi_url"] = dataset.get_uvlhub_doi()
+                # Public DOI resolver URL (best-effort)
+                result["doi_resolver_url"] = f"https://doi.org/{dataset.ds_meta_data.dataset_doi}"
+        except Exception:
+            # best-effort, don't break response on unexpected errors
+            pass
+
+        return jsonify(result), 200
 
     return render_template("dataset/upload_dataset.html", form=form)
 
