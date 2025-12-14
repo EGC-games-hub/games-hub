@@ -31,7 +31,25 @@ class ZenodoService(BaseService):
         if fakenodo_url:
             return fakenodo_url.rstrip("/")
 
-        # Default to local fakenodo if no env provided
+        # If running inside Docker and FAKENODO_URL not set, try to detect the host gateway
+        # so a fakenodo process running on the host (listening on 0.0.0.0:5001) can be reached
+        # from the container without extra env configuration.
+        try:
+            # Parse /proc/net/route to get the default gateway
+            if os.path.exists("/proc/net/route"):
+                with open("/proc/net/route") as f:
+                    for line in f.readlines()[1:]:
+                        parts = line.strip().split()
+                        if len(parts) >= 3 and parts[1] == "00000000":
+                            gw_hex = parts[2]
+                            # Convert little-endian hex to IP
+                            gw = ".".join(str(int(gw_hex[i : i + 2], 16)) for i in range(6, -1, -2))
+                            candidate = f"http://{gw}:5001/deposit/depositions"
+                            return candidate.rstrip("/")
+        except Exception:
+            pass
+
+        # Final fallback to localhost (useful when running fakenodo inside same container)
         return "http://localhost:5001/deposit/depositions"
 
 
@@ -40,10 +58,19 @@ class ZenodoService(BaseService):
 
     def __init__(self):
         super().__init__(ZenodoRepository())
-        self.ZENODO_ACCESS_TOKEN = self.get_zenodo_access_token()
+        # Force fakenodo-only operation: the application must not call the real Zenodo API.
+        # This ensures no accidental calls to Zenodo even if environment variables are set.
+        self.FAKENODO_URL = os.getenv("FAKENODO_URL")
+        self.use_fakenodo = True
+
+        # We won't use Zenodo access tokens when operating in fakenodo-only mode
+        self.ZENODO_ACCESS_TOKEN = None
         self.ZENODO_API_URL = self.get_zenodo_url()
+
+        # Basic headers (no Authorization header for fakenodo)
         self.headers = {"Content-Type": "application/json"}
-        # Fakenodo does not require authentication params
+
+        # No auth params when using fakenodo-only
         self.params = {}
 
     def test_connection(self) -> bool:
@@ -176,9 +203,18 @@ class ZenodoService(BaseService):
 
         response = requests.post(self.ZENODO_API_URL, params=self.params, json=data, headers=self.headers)
         if response.status_code != 201:
-            error_message = f"Failed to create deposition. Error details: {response.json()}"
+            # Try to extract JSON error if possible, otherwise include raw text
+            try:
+                details = response.json()
+            except Exception:
+                details = response.text
+            error_message = f"Failed to create deposition. Status: {response.status_code}. Details: {details}"
             raise Exception(error_message)
-        return response.json()
+        try:
+            return response.json()
+        except Exception:
+            # If response is not JSON (unexpected), return raw text in a dict
+            return {"raw_response": response.text}
 
     def upload_file(self, dataset: DataSet, deposition_id: int, feature_model: FeatureModel, user=None) -> dict:
         """
