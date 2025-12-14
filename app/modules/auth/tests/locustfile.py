@@ -48,8 +48,64 @@ class LoginBehavior(TaskSet):
             print(f"Login failed: {response.status_code}")
 
 
+
+
+
+class TwoFactorBehavior(TaskSet):
+    """
+    This behavior attempts to login with a user that has 2FA enabled and
+    reaches the 2FA verification page (without submitting the 2FA code).
+    """
+
+    def on_start(self):
+        # ensure no active session
+        self.client.get("/logout")
+
+    @task
+    def reach_2fa_prompt(self):
+        # GET login page to obtain csrf token
+        resp = self.client.get("/login")
+        try:
+            csrf_token = get_csrf_token(resp)
+        except Exception:
+            print("Could not extract CSRF token from login page")
+            return
+
+        # Credentials used in unit tests for 2FA flows
+        data = {"email": "verify@example.com", "password": "pass1234", "csrf_token": csrf_token}
+
+        post_resp = self.client.post("/login", data=data, allow_redirects=False)
+
+        # If the app responds with a redirect to the 2fa verify endpoint, follow it
+        location = post_resp.headers.get("Location", "") if post_resp is not None else ""
+        if post_resp is not None and post_resp.status_code in (301, 302, 303) and "/2fa/verify" in location:
+            verify_resp = self.client.get("/2fa/verify")
+            if "Two-Factor Authentication" in verify_resp.text:
+                # reached 2FA screen
+                return
+            else:
+                print("Reached /2fa/verify but expected text not found")
+                return
+
+        # If no redirect, maybe the POST returned the 2FA page directly
+        try:
+            text = post_resp.text or ""
+        except Exception:
+            text = ""
+
+        if "Two-Factor Authentication" in text or "/2fa/verify" in getattr(post_resp, "url", ""):
+            # already on the 2FA page
+            return
+
+        # As a fallback, explicitly request the verify page and check session
+        fallback = self.client.get("/2fa/verify")
+        if fallback.status_code == 200 and "Two-Factor Authentication" in fallback.text:
+            return
+        print("Did not reach 2FA verification page after login attempt")
+
+
 class AuthUser(HttpUser):
-    tasks = [SignupBehavior, LoginBehavior]
+    tasks = [SignupBehavior, LoginBehavior, TwoFactorBehavior]
     min_wait = 5000
     max_wait = 9000
     host = get_host_for_locust_testing()
