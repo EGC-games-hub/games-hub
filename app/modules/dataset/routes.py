@@ -294,6 +294,7 @@ def download_dataset(dataset_id):
 
 
 @dataset_bp.route("/doi/<path:doi>/", methods=["GET"])
+@dataset_bp.route("/doi/<path:doi>", methods=["GET"])  # Support both with and without trailing slash
 def subdomain_index(doi):
     new_doi = doi_mapping_service.get_new_doi(doi)
     if new_doi:
