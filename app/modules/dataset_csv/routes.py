@@ -348,6 +348,7 @@ def download_dataset(dataset_id):
 
 
 @dataset_csv_bp.route("/doi/<path:doi>/", methods=["GET"])
+@dataset_csv_bp.route("/doi/<path:doi>", methods=["GET"])  # Support both with and without trailing slash
 def subdomain_index(doi):
 
     # Check if the DOI is an old DOI

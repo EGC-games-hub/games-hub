@@ -55,7 +55,7 @@
                                             {{ dataset.ds_meta_data.title }}
                                         </a>
                                     {% else %}
-                                        <a href="{{ url_for('dataset.get_unsynchronized_dataset', dataset_id=dataset.id) }}">
+                                        <a href="{{ url_for('dataset_csv.get_unsynchronized_dataset', dataset_id=dataset.id) }}">
                                             {{ dataset.ds_meta_data.title }}
                                         </a>                                    
                                     {% endif %}

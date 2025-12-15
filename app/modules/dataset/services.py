@@ -164,7 +164,15 @@ class DataSetService(BaseService):
         return self.dsmetadata_repository.update(id, **kwargs)
 
     def get_uvlhub_doi(self, dataset: DataSet) -> str:
-        domain = os.getenv("DOMAIN", "localhost")
+        # Prefer configured DOMAIN, otherwise fall back to the current request host
+        domain = os.getenv("DOMAIN")
+        if not domain:
+            try:
+                from flask import request
+
+                domain = request.host
+            except Exception:
+                domain = "localhost"
         return f"http://{domain}/doi/{dataset.ds_meta_data.dataset_doi}"
 
 
@@ -186,7 +194,51 @@ class DSMetaDataService(BaseService):
         return self.repository.update(id, **kwargs)
 
     def filter_by_doi(self, doi: str) -> Optional[DSMetaData]:
-        return self.repository.filter_by_doi(doi)
+        # Try robust matching for common DOI formats
+        if not doi:
+            return None
+
+        original = doi.strip()
+        candidate = original
+
+        def normalize(value: str) -> str:
+            v = (value or "").strip()
+            lv = v.lower()
+            # Strip URL prefix if present
+            if "doi.org/" in lv:
+                # take substring after the last occurrence of 'doi.org/'
+                idx = lv.rfind("doi.org/")
+                return v[idx + len("doi.org/") :].strip()
+            # Strip leading 'doi:' if present
+            if lv.startswith("doi:"):
+                return v[4:].strip()
+            return v
+
+        # 1) Exact match as stored
+        ds = self.repository.filter_by_doi(candidate)
+        if ds:
+            return ds
+
+        # 2) Normalized bare DOI (remove prefixes)
+        bare = normalize(candidate)
+        if bare != candidate:
+            ds = self.repository.filter_by_doi(bare)
+            if ds:
+                return ds
+
+        # 3) Try common URL variants in case DB stored full URL
+        for prefix in ("https://doi.org/", "http://doi.org/"):
+            ds = self.repository.filter_by_doi(prefix + bare)
+            if ds:
+                return ds
+
+        # 4) As a last attempt, try trimming any trailing slash
+        if bare.endswith("/"):
+            ds = self.repository.filter_by_doi(bare[:-1])
+            if ds:
+                return ds
+
+        return None
 
 
 class DSViewRecordService(BaseService):

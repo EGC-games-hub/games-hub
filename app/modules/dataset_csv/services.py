@@ -138,7 +138,14 @@ class DataSetService(BaseService):
         return self.dsmetadata_repository.update(id, **kwargs)
 
     def get_uvlhub_doi(self, dataset: DataSet) -> str:
-        domain = os.getenv("DOMAIN", "localhost")
+        domain = os.getenv("DOMAIN")
+        if not domain:
+            try:
+                from flask import request
+
+                domain = request.host
+            except Exception:
+                domain = "localhost"
         return f"http://{domain}/doi/{dataset.ds_meta_data.dataset_doi}"
 
 
@@ -160,7 +167,44 @@ class DSMetaDataService(BaseService):
         return self.repository.update(id, **kwargs)
 
     def filter_by_doi(self, doi: str) -> Optional[DSMetaData]:
-        return self.repository.filter_by_doi(doi)
+        # Robust lookup handling for variations in stored DOI format
+        if not doi:
+            return None
+
+        original = doi.strip()
+        candidate = original
+
+        def normalize(value: str) -> str:
+            v = (value or "").strip()
+            lv = v.lower()
+            if "doi.org/" in lv:
+                idx = lv.rfind("doi.org/")
+                return v[idx + len("doi.org/") :].strip()
+            if lv.startswith("doi:"):
+                return v[4:].strip()
+            return v
+
+        ds = self.repository.filter_by_doi(candidate)
+        if ds:
+            return ds
+
+        bare = normalize(candidate)
+        if bare != candidate:
+            ds = self.repository.filter_by_doi(bare)
+            if ds:
+                return ds
+
+        for prefix in ("https://doi.org/", "http://doi.org/"):
+            ds = self.repository.filter_by_doi(prefix + bare)
+            if ds:
+                return ds
+
+        if bare.endswith("/"):
+            ds = self.repository.filter_by_doi(bare[:-1])
+            if ds:
+                return ds
+
+        return None
 
 
 class DSViewRecordService(BaseService):
