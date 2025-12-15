@@ -1,4 +1,5 @@
 from locust import HttpUser, TaskSet, task
+import os
 
 from core.environment.host import get_host_for_locust_testing
 from core.locust.common import fake, get_csrf_token
@@ -102,21 +103,59 @@ class DatasetCommentsBehavior(TaskSet):
 
 
 class DatasetBehavior(TaskSet):
-    on_start = None
+    """Merged behavior: homepage checks, upload warm-up and CSV upload with login.
+
+    Combines the previous two DatasetBehavior classes so a single TaskSet runs all
+    relevant dataset-related tasks.
+    """
 
     def on_start(self):
-        # warm-up: visit upload page to obtain CSRF if needed
+        # Best-effort: ensure logged out then login, then warm-up upload page
         try:
+            self.ensure_logged_out()
+        except Exception:
+            pass
+
+        try:
+            self.login()
+        except Exception:
+            pass
+
+        try:
+            # warm-up: visit upload page to obtain CSRF if needed
             self.dataset_upload()
         except Exception:
-            # keep running even if upload page is not available in this environment
             pass
+
+    def ensure_logged_out(self):
+        try:
+            self.client.get("/logout")
+        except Exception:
+            pass
+
+    def login(self):
+        response = self.client.get("/login")
+        try:
+            csrf_token = get_csrf_token(response)
+        except Exception:
+            csrf_token = None
+
+        login_data = {"email": "user2@example.com", "password": "1234"}
+        if csrf_token:
+            login_data["csrf_token"] = csrf_token
+
+        resp = self.client.post(
+            "/login",
+            data=login_data,
+            name="POST /login (user)",
+        )
+        if resp.status_code != 200:
+            print(f"Login failed: {resp.status_code}")
 
     @task(3)
     def dataset_upload(self):
         """Visit dataset upload page and extract CSRF token (if present)."""
         response = self.client.get("/dataset/upload")
-        # utility will raise if token not found; swallow to avoid failing the locust run
         try:
             get_csrf_token(response)
         except Exception:
@@ -129,7 +168,6 @@ class DatasetBehavior(TaskSet):
         Locust tasks should be resilient: don't raise on minor mismatches, but log them.
         """
         resp = self.client.get("/")
-        # Basic health check
         if resp.status_code != 200:
             print(f"Homepage returned status {resp.status_code}")
             return
@@ -137,17 +175,70 @@ class DatasetBehavior(TaskSet):
         body = resp.text or ""
 
         # Check for Spanish heading or fallback English
-        if not ("Datasets más populares" in body or "Datasets mas populares" in body or "Most popular datasets" in body):
-            # also try to find the table structure used by the template
+        if not (
+            "Datasets más populares" in body
+            or "Datasets mas populares" in body
+            or "Most popular datasets" in body
+        ):
             if not re.search(r"<table[\s\S]*class=\"table table-hover\"", body):
                 print("Trending section not found on homepage (no heading or expected table).")
                 return
 
-        # Quick heuristic: count badges that indicate download counts
         badges = re.findall(r"<span class=\"badge bg-primary\">", body)
         if len(badges) == 0:
-            # not fatal, but note it
             print("No primary download badges found in homepage trending section.")
+
+    @task
+    def upload_dataset(self):
+        # Load CSV upload page to obtain CSRF token (form) and ensure page is accessible
+        response = self.client.get("/csvdataset/upload")
+        try:
+            csrf_token = get_csrf_token(response)
+        except Exception:
+            csrf_token = None
+
+        # Locate the example CSV shipped with the repo
+        csv_path = os.path.abspath(
+            os.path.join(
+                os.path.dirname(__file__),
+                "..",
+                "..",
+                "dataset_csv",
+                "csv_example",
+                "topselling_steam_games.csv",
+            )
+        )
+
+        if not os.path.exists(csv_path):
+            print(f"CSV example not found at {csv_path}")
+            return
+
+        data = {}
+        if csrf_token:
+            data["csrf_token"] = csrf_token
+
+        # Open the CSV file as binary and upload to the CSV-specific endpoint
+        with open(csv_path, "rb") as fh:
+            files = {"file": (os.path.basename(csv_path), fh, "text/csv")}
+
+            resp = self.client.post(
+                "/csvdataset/file/upload",
+                files=files,
+                data=data,
+                name="POST /csvdataset/file/upload",
+                allow_redirects=True,
+            )
+
+        if resp.status_code not in (200, 201):
+            print(f"CSV upload failed: {resp.status_code} - {resp.text[:200]}")
+        else:
+            try:
+                json_data = resp.json()
+                msg = json_data.get("message")
+                if msg:
+                    print(f"CSV upload response: {msg}")
+            except Exception:
+                pass
 
 
 class DatasetUser(HttpUser):

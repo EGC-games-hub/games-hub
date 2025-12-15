@@ -87,9 +87,9 @@ def test_upload_dataset():
         affiliation_field1 = driver.find_element(By.NAME, "authors-1-affiliation")
         affiliation_field1.send_keys("Club1")
 
-        # Obtain the absolute paths of the files
-        file1_path = os.path.abspath("app/modules/dataset/uvl_examples/file1.uvl")
-        file2_path = os.path.abspath("app/modules/dataset/uvl_examples/file2.uvl")
+        # Obtén las rutas absolutas de los archivos
+        file1_path = os.path.abspath("app/modules/dataset_csv/csv_example/valid.csv")
+        file2_path = os.path.abspath("app/modules/dataset_csv/csv_example/topselling_steam_games.csv")
 
         # Subir el primer archivo
         dropzone = driver.find_element(By.CLASS_NAME, "dz-hidden-input")
