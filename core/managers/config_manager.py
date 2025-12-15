@@ -1,6 +1,5 @@
 import os
 import secrets
-from sqlalchemy.pool import NullPool
 
 
 class ConfigManager:
@@ -32,23 +31,16 @@ class Config:
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     # Conservative engine options to respect low max_user_connections in shared DBs
-    _pool_class = os.getenv("DB_POOL_CLASS", "queue").lower()
-    if _pool_class == "null":
-        # NullPool: do not pass pool_* size/overflow/timeout options (they are invalid)
-        SQLALCHEMY_ENGINE_OPTIONS = {
-            "poolclass": NullPool,
-            # pre_ping is still useful to validate connections on open
-            "pool_pre_ping": os.getenv("DB_POOL_PRE_PING", "true").lower() == "true",
-        }
-    else:
-        # QueuePool (default): keep pool constrained for shared DBs
-        SQLALCHEMY_ENGINE_OPTIONS = {
-            "pool_size": int(os.getenv("DB_POOL_SIZE", "1")),
-            "max_overflow": int(os.getenv("DB_MAX_OVERFLOW", "0")),
-            "pool_recycle": int(os.getenv("DB_POOL_RECYCLE", "1800")),
-            "pool_pre_ping": os.getenv("DB_POOL_PRE_PING", "true").lower() == "true",
-            "pool_timeout": int(os.getenv("DB_POOL_TIMEOUT", "10")),
-        }
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        # Keep pool small to avoid exhausting provider limits (e.g., 5)
+        "pool_size": int(os.getenv("DB_POOL_SIZE", "2")),
+        # Do not allow going beyond pool_size
+        "max_overflow": int(os.getenv("DB_MAX_OVERFLOW", "0")),
+        # Recycle connections periodically to avoid stale server-side connections
+        "pool_recycle": int(os.getenv("DB_POOL_RECYCLE", "1800")),
+        # Validate connections from pool before using them
+        "pool_pre_ping": os.getenv("DB_POOL_PRE_PING", "true").lower() == "true",
+    }
     TIMEZONE = "Europe/Madrid"
     TEMPLATES_AUTO_RELOAD = True
     UPLOAD_FOLDER = "uploads"
@@ -68,11 +60,6 @@ class TestingConfig(Config):
         f"{os.getenv('MARIADB_TEST_DATABASE', 'default_db')}"
     )
     WTF_CSRF_ENABLED = False
-    # In testing, avoid queue timeouts by not holding connections
-    SQLALCHEMY_ENGINE_OPTIONS = {
-        "poolclass": NullPool,
-        "pool_pre_ping": True,
-    }
 
 
 class ProductionConfig(Config):
