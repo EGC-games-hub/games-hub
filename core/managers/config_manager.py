@@ -1,5 +1,6 @@
 import os
 import secrets
+from sqlalchemy.pool import NullPool
 
 
 class ConfigManager:
@@ -31,15 +32,22 @@ class Config:
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     # Conservative engine options to respect low max_user_connections in shared DBs
+    _pool_class = os.getenv("DB_POOL_CLASS", "queue").lower()
     SQLALCHEMY_ENGINE_OPTIONS = {
-        # Keep pool small to avoid exhausting provider limits (e.g., 5)
-        "pool_size": int(os.getenv("DB_POOL_SIZE", "2")),
+        # Keep pool very small for constrained environments
+        "pool_size": int(os.getenv("DB_POOL_SIZE", "1")),
         # Do not allow going beyond pool_size
         "max_overflow": int(os.getenv("DB_MAX_OVERFLOW", "0")),
         # Recycle connections periodically to avoid stale server-side connections
         "pool_recycle": int(os.getenv("DB_POOL_RECYCLE", "1800")),
         # Validate connections from pool before using them
         "pool_pre_ping": os.getenv("DB_POOL_PRE_PING", "true").lower() == "true",
+        # Optional: switch to NullPool to avoid holding connections (open/close per use)
+        **({"poolclass": NullPool} if _pool_class == "null" else {}),
+        # Optional timeout when pool is exhausted
+        "pool_timeout": int(os.getenv("DB_POOL_TIMEOUT", "10")),
+        # Reset behavior on connection return
+        "pool_reset_on_return": os.getenv("DB_POOL_RESET_ON_RETURN", "rollback"),
     }
     TIMEZONE = "Europe/Madrid"
     TEMPLATES_AUTO_RELOAD = True
