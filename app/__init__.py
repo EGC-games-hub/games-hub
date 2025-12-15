@@ -65,6 +65,11 @@ def create_app(config_name="development"):
             "APP_VERSION": get_app_version(),
         }
 
+    # Ensure SQLAlchemy scoped session is removed after each app context
+    @app.teardown_appcontext
+    def shutdown_session(exception=None):
+        db.session.remove()
+
     return app
 
 

@@ -30,6 +30,17 @@ class Config:
         f"{os.getenv('MARIADB_DATABASE', 'default_db')}"
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    # Conservative engine options to respect low max_user_connections in shared DBs
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        # Keep pool small to avoid exhausting provider limits (e.g., 5)
+        "pool_size": int(os.getenv("DB_POOL_SIZE", "2")),
+        # Do not allow going beyond pool_size
+        "max_overflow": int(os.getenv("DB_MAX_OVERFLOW", "0")),
+        # Recycle connections periodically to avoid stale server-side connections
+        "pool_recycle": int(os.getenv("DB_POOL_RECYCLE", "1800")),
+        # Validate connections from pool before using them
+        "pool_pre_ping": os.getenv("DB_POOL_PRE_PING", "true").lower() == "true",
+    }
     TIMEZONE = "Europe/Madrid"
     TEMPLATES_AUTO_RELOAD = True
     UPLOAD_FOLDER = "uploads"
