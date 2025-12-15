@@ -44,10 +44,8 @@ class Config:
         "pool_pre_ping": os.getenv("DB_POOL_PRE_PING", "true").lower() == "true",
         # Optional: switch to NullPool to avoid holding connections (open/close per use)
         **({"poolclass": NullPool} if _pool_class == "null" else {}),
-        # Optional timeout when pool is exhausted
-        "pool_timeout": int(os.getenv("DB_POOL_TIMEOUT", "10")),
-        # Reset behavior on connection return
-        "pool_reset_on_return": os.getenv("DB_POOL_RESET_ON_RETURN", "rollback"),
+    # Optional timeout when pool is exhausted
+    "pool_timeout": int(os.getenv("DB_POOL_TIMEOUT", "10")),
     }
     TIMEZONE = "Europe/Madrid"
     TEMPLATES_AUTO_RELOAD = True
@@ -68,6 +66,11 @@ class TestingConfig(Config):
         f"{os.getenv('MARIADB_TEST_DATABASE', 'default_db')}"
     )
     WTF_CSRF_ENABLED = False
+    # In testing, avoid queue timeouts by not holding connections
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        "poolclass": NullPool,
+        "pool_pre_ping": True,
+    }
 
 
 class ProductionConfig(Config):

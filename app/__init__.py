@@ -19,7 +19,7 @@ db = SQLAlchemy()
 migrate = Migrate()
 
 
-def create_app(config_name="development"):
+def create_app(config_name=None):
     app = Flask(__name__)
 
     # Load configuration according to environment
